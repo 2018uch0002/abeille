@@ -51,10 +51,15 @@ MGAngleDistribution::MGAngleDistribution(const std::vector<double>& mu,
   }
 
   // Make sure PDF is positive
+  // if pdf found to be negadtive, then weight modifier will be used.
   for (const auto& p : pdf_) {
     if (p < 0.) {
-      fatal_error("PDF is less than 0.");
+      //fatal_error("PDF is less than 0.");
+      warning("PDF is less than 0.");
+      is_pdf_neg = true;
+      if (p > max_pdf) max_pdf = p;
     }
+
   }
 
   // Make sure CDF is positive
@@ -64,9 +69,9 @@ MGAngleDistribution::MGAngleDistribution(const std::vector<double>& mu,
     }
   }
 
-  // Make sure CDF is sorted
-  if (std::is_sorted(cdf_.begin(), cdf_.end()) == false) {
-    fatal_error("CDF is not sorted.");
+  // Make sure CDF is sorted (when pdf is positive.)
+  if ((std::is_sorted(cdf_.begin(), cdf_.end()) == false) & (is_pdf_neg = false)) {
+      fatal_error("CDF is not sorted.");
   }
 
   // Make sure CDF starts at 0, and ends at 1

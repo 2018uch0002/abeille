@@ -43,20 +43,36 @@ class MGAngleDistribution {
                       const std::vector<double>& cdf);
 
   double sample_mu(pcg32& rng) const {
-    const double xi = RNG::rand(rng);
+    if (is_pdf_neg == false){
+      const double xi = RNG::rand(rng);
 
-    auto cdf_it = std::lower_bound(cdf_.begin(), cdf_.end(), xi);
-    std::size_t l =
-        static_cast<std::size_t>(std::distance(cdf_.begin(), cdf_it));
-    if (xi == *cdf_it) return mu_[l];
+      auto cdf_it = std::lower_bound(cdf_.begin(), cdf_.end(), xi);
+      std::size_t l =
+          static_cast<std::size_t>(std::distance(cdf_.begin(), cdf_it));
+      if (xi == *cdf_it) return mu_[l];
 
-    l--;
+      l--;
 
-    // Must account for case where pdf_[l] = pdf_[l+1], which means  that
-    // the slope is zero, and m=0. This results in nan for the linear alg.
-    if (pdf_[l] == pdf_[l + 1]) return histogram_interp(xi, l);
+      // Must account for case where pdf_[l] = pdf_[l+1], which means  that
+      // the slope is zero, and m=0. This results in nan for the linear alg.
+      if (pdf_[l] == pdf_[l + 1]) return histogram_interp(xi, l);
 
-    return linear_interp(xi, l);
+      return linear_interp(xi, l);
+      
+      }else{
+        bool is_mu_sampled = false;
+        while(!is_mu_sampled){
+          // random values sampled from uniform distribution for mu
+          const double mu_xi = RNG::rand(rng);
+          // random value sampled for pdf from uniform distribution
+          const double pdf_xi = RNG::rand(rng); 
+          
+        }
+
+
+      }
+
+
   }
 
   double pdf(double mu) const {
@@ -88,6 +104,8 @@ class MGAngleDistribution {
   std::vector<double> mu_;
   std::vector<double> pdf_;
   std::vector<double> cdf_;
+  double max_pdf = 0.0; // Variable for maxima value of pdf, which will be used in rejected sampling.
+  bool is_pdf_neg = false; // Make it true, if pdf is negative. 
 
   double histogram_interp(double xi, std::size_t l) const {
     return mu_[l] + ((xi - cdf_[l]) / pdf_[l]);

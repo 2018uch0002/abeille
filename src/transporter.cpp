@@ -342,8 +342,8 @@ void Transporter::do_scatter(Particle& p, const Nuclide& nuclide,
 
   p.set_direction(sinfo.direction);
   p.set_energy(sinfo.energy);
-  p.set_weight(p.wgt() * sinfo.yield);
-  p.set_weight2(p.wgt2() * sinfo.yield);
+  p.set_weight(p.wgt() * sinfo.yield * sinfo.weight_modifier);
+  p.set_weight2(p.wgt2() * sinfo.yield * sinfo.weight_modifier);
 }
 
 void Transporter::make_noise_copy(Particle& p, const MicroXSs& microxs) const {
