@@ -42,37 +42,40 @@ class MGAngleDistribution {
                       const std::vector<double>& pdf,
                       const std::vector<double>& cdf);
 
-  double sample_mu(pcg32& rng) const {
+  std::pair<double, double> sample_mu(pcg32& rng) const {
     if (is_pdf_neg == false){
       const double xi = RNG::rand(rng);
 
       auto cdf_it = std::lower_bound(cdf_.begin(), cdf_.end(), xi);
       std::size_t l =
           static_cast<std::size_t>(std::distance(cdf_.begin(), cdf_it));
-      if (xi == *cdf_it) return mu_[l];
+      if (xi == *cdf_it) return std::make_pair(mu_[l], 1.0);
 
       l--;
 
       // Must account for case where pdf_[l] = pdf_[l+1], which means  that
       // the slope is zero, and m=0. This results in nan for the linear alg.
-      if (pdf_[l] == pdf_[l + 1]) return histogram_interp(xi, l);
+      if (pdf_[l] == pdf_[l + 1]) return std::make_pair(histogram_interp(xi, l), 1.0);
 
-      return linear_interp(xi, l);
+      return std::make_pair(linear_interp(xi, l),1.0);
       
       }else{
+        double mu_xi, pdf_xi, pdf_at_mu_xi, weight_modifier = 1.0;
+
+        // Rejection Sampling
         bool is_mu_sampled = false;
         while(!is_mu_sampled){
-          // random values sampled from uniform distribution for mu
-          const double mu_xi = RNG::rand(rng);
-          // random value sampled for pdf from uniform distribution
-          const double pdf_xi = RNG::rand(rng); 
+          mu_xi = RNG::rand(rng) * 2 - 1;  //[-1,1] Random value for mu
+          pdf_xi = RNG::rand(rng);  // [0,1] Random value for pdf
+          pdf_at_mu_xi = pdf(mu_xi);
           
-        }
-
-
+          if (pdf_xi <= abs(pdf_at_mu_xi)/abs_max_pdf){
+            is_mu_sampled = true; // to break the loop
+            weight_modifier = pdf_at_mu_xi/abs_max_pdf;
+          }
+        } 
+        return std::make_pair(mu_xi, weight_modifier);
       }
-
-
   }
 
   double pdf(double mu) const {
@@ -104,7 +107,7 @@ class MGAngleDistribution {
   std::vector<double> mu_;
   std::vector<double> pdf_;
   std::vector<double> cdf_;
-  double max_pdf = 0.0; // Variable for maxima value of pdf, which will be used in rejected sampling.
+  double abs_max_pdf = 0.0; // Variable for maxima value of absolute values of pdf, which will be used in rejected sampling.
   bool is_pdf_neg = false; // Make it true, if pdf is negative. 
 
   double histogram_interp(double xi, std::size_t l) const {

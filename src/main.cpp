@@ -40,6 +40,7 @@
 #include <stdexcept>
 #include <string>
 
+
 #ifdef ABEILLE_USE_OMP
 #include <omp.h>
 #endif

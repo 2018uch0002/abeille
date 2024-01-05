@@ -57,7 +57,7 @@ MGAngleDistribution::MGAngleDistribution(const std::vector<double>& mu,
       //fatal_error("PDF is less than 0.");
       warning("PDF is less than 0.");
       is_pdf_neg = true;
-      if (p > max_pdf) max_pdf = p;
+      if (abs(p) > abs_max_pdf) abs_max_pdf = abs(p);
     }
 
   }
