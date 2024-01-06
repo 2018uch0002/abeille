@@ -70,7 +70,7 @@ MGAngleDistribution::MGAngleDistribution(const std::vector<double>& mu,
   }
 
   // Make sure CDF is sorted (when pdf is positive.)
-  if ((std::is_sorted(cdf_.begin(), cdf_.end()) == false) & (is_pdf_neg = false)) {
+  if ((std::is_sorted(cdf_.begin(), cdf_.end()) == false) & (is_pdf_neg == false)) {
       fatal_error("CDF is not sorted.");
   }
 
