@@ -78,6 +78,15 @@ std::vector<BankedParticle> DeltaTracker::transport(
   {
     // Thread local storage
     ThreadLocalScores thread_scores;
+    int threadnum = omp_get_thread_num();
+    std::string filename = "particle_wgts_" + std::to_string(threadnum) + ".txt";
+    std::ifstream file_temp(filename);
+    if(!file_temp.good()){
+      std::ofstream file_temp(filename);
+      file_temp.close(); 
+    }
+    file_temp.close();
+    std::ofstream file_wgt(filename, std::ios::app);
 
 // Transport all particles in for thread
 #ifdef ABEILLE_USE_OMP
@@ -227,7 +236,10 @@ std::vector<BankedParticle> DeltaTracker::transport(
           }
         }
       }  // While alive
+    file_wgt << p.wgt() <<"\n";
     }    // For all particles
+    file_wgt << "-----\n";
+    file_wgt.close();
 
     // Send all thread local scores to tallies instance
     tallies->score_k_col(thread_scores.k_col_score);

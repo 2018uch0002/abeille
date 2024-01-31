@@ -33,7 +33,7 @@ sources:
 
 settings:
   nparticles: 1000000
-  ngenerations: 1050
+  ngenerations: 5000
   nignored: 50
   ngroups: 1
   transport: surface-tracking

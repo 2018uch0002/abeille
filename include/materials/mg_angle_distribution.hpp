@@ -43,7 +43,7 @@ class MGAngleDistribution {
                       const std::vector<double>& cdf);
 
   std::pair<double, double> sample_mu(pcg32& rng) const {
-    if (is_pdf_neg == false){
+    if (!is_pdf_neg){
       const double xi = RNG::rand(rng);
 
       auto cdf_it = std::lower_bound(cdf_.begin(), cdf_.end(), xi);
@@ -61,8 +61,10 @@ class MGAngleDistribution {
       
       }else{
         double mu_xi = RNG::rand(rng) * 2 - 1;  //[-1,1] Random value for mu
-        double weight_modifier = pdf(mu_xi)/max_pdf;
-
+        //double weight_modifier = pdf(mu_xi) * 2.0;
+        double weight_modifier = area_wm;
+        if (pdf(mu_xi) < 0.0) { weight_modifier *=-1;}
+        
         return {mu_xi, weight_modifier};
       }
   }
@@ -96,7 +98,8 @@ class MGAngleDistribution {
   std::vector<double> mu_;
   std::vector<double> pdf_;
   std::vector<double> cdf_;
-  double max_pdf = 0.0; // Variable for maxima value of absolute values of pdf, which will be used in rejected sampling.
+
+  double area_wm = 0.0; // area for modifed pdf for weight modifer distribution
   bool is_pdf_neg = false; // Make it true, if pdf is negative. 
 
   double histogram_interp(double xi, std::size_t l) const {

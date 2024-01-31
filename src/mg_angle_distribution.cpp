@@ -57,8 +57,23 @@ MGAngleDistribution::MGAngleDistribution(const std::vector<double>& mu,
       //fatal_error("PDF is less than 0.");
       warning("PDF is less than 0.");
       is_pdf_neg = true;
+      break;
     }
-    if (p > max_pdf) max_pdf = p;
+  }
+
+  // Getting the area for weight modifer if pdf and cdf is negative
+  if (is_pdf_neg){
+    // valid for linear distribution only
+
+    // slope for the linear distribution
+    double slope_pdf = (pdf_.back() - pdf_.front())/(mu_.back() - mu_.front());
+    
+    // the variable meant to store the x where pdf = 0 
+    double root_pdf = mu_.back() - pdf_.back()/slope_pdf;
+    
+    // area under the absolute pdf of distribution 
+    double area_wm = std::abs( 0.5 * (root_pdf - mu_.front()) * pdf_.front() ) + std::abs( 0.5 * (mu_.back() - root_pdf) * pdf_.back() );    
+    std::cout<<"  Area under the absoute pdf of scattering is = "<<area_wm<<".\n";
   }
 
   // Make sure CDF is positive
@@ -69,7 +84,7 @@ MGAngleDistribution::MGAngleDistribution(const std::vector<double>& mu,
   }
 
   // Make sure CDF is sorted (when pdf is positive.)
-  if ((std::is_sorted(cdf_.begin(), cdf_.end()) == false) & (is_pdf_neg == false)) {
+  if ((std::is_sorted(cdf_.begin(), cdf_.end()) == false) & (!is_pdf_neg)) {
       fatal_error("CDF is not sorted.");
   }
 

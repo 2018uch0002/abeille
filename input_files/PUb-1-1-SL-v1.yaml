@@ -3,6 +3,7 @@
 # PUb-1-1-SL
 # k_eff = 1.0
 
+# Original anisotropic xs
 materials:
   - name: Pu-239-b
     id: 1
@@ -13,16 +14,33 @@ materials:
     chi: [[1.]]
     scatter: [[0.733333]]
     P1: [[0.4545452066]]
+    #P1: [[0.272727]]
 
+# Transport corrected xs
+#materials:
+#  - name: Pu-239-b
+#    id: 1
+#    total: [0.666667]
+#    absorption: [0.266667]
+#    fission: [0.266667]
+#    nu: [2.5]
+#    chi: [[1.]]
+#    scatter: [[0.4]]
 
 #sampling-xs: [0.90]
 
 surfaces:
   - {type: xplane, x0: -0.79606, boundary: vacuum, id: 1}
   - {type: xplane, x0:  0.79606, boundary: vacuum, id: 2}
+  #- {type: xplane, x0: -0.77032, boundary: vacuum, id: 1}
+  #- {type: xplane, x0:  0.77032, boundary: vacuum, id: 2}
+  - {type: yplane, y0: -100., boundary: reflective, id: 3}
+  - {type: yplane, y0:  100., boundary: reflective, id: 4}
+  - {type: zplane, z0: -100., boundary: reflective, id: 5}
+  - {type: zplane, z0:  100., boundary: reflective, id: 6}
 
 cells:
-  - {region: "+1 & -2", material: 1, id: 1}
+  - {region: "+1 & -2 & +3 & -4 & +5 & -6", material: 1, id: 1}
 
 universes:
   - {cells: [1], id: 1}
@@ -41,14 +59,21 @@ sources:
       energy: 0.5
     weight: 1.
 
+cancelator:
+  type: approximate
+  low: [-0.79606, -100., -100.]
+  hi: [0.79606, 100., 100.]
+  shape: [100000, 1, 1]
+
 settings:
   nparticles: 100000
   ngenerations: 5000
   nignored: 200
   ngroups: 1
-  transport: surface-tracking
-  #transport: carter-tracking
+  #transport: surface-tracking
+  transport: delta-tracking
   simulation: k-eigenvalue
-  #cancellation: true
+  cancellation: true
   energy-mode: multi-group
   energy-bounds: [0, 1]
+  wgt-cutoff: 0.0001
