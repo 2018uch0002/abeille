@@ -25,12 +25,14 @@
 #ifndef MG_ANGLE_DISTRIBUTION_H
 #define MG_ANGLE_DISTRIBUTION_H
 
-#include <utils/rng.hpp>
-
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <utils/error.hpp>
+#include <utils/rng.hpp>
 #include <vector>
+
+#include <PapillonNDL/pctable.hpp>
 
 class MGAngleDistribution {
  public:
@@ -43,7 +45,7 @@ class MGAngleDistribution {
                       const std::vector<double>& cdf);
 
   std::pair<double, double> sample_mu(pcg32& rng) const {
-    if (!is_pdf_neg){
+    if (pdf_is_neg == false) {
       const double xi = RNG::rand(rng);
 
       auto cdf_it = std::lower_bound(cdf_.begin(), cdf_.end(), xi);
@@ -57,16 +59,25 @@ class MGAngleDistribution {
       // the slope is zero, and m=0. This results in nan for the linear alg.
       if (pdf_[l] == pdf_[l + 1]) return {histogram_interp(xi, l), 1.0};
 
-      return {linear_interp(xi, l),1.0};
-      
-      }else{
-        double mu_xi = RNG::rand(rng) * 2 - 1;  //[-1,1] Random value for mu
-        //double weight_modifier = pdf(mu_xi) * 2.0;
-        double weight_modifier = area_wm;
-        if (pdf(mu_xi) < 0.0) { weight_modifier *=-1;}
-        
-        return {mu_xi, weight_modifier};
+      return {linear_interp(xi, l), 1.0};
+
+    } else {
+      // In the case of negative distribution, sampling will be done from
+      // normalized distribution of absoulte values of given negative
+      // distribution
+
+      const double xi = RNG::rand(rng);
+      const double sampled_mu = abs_pdf_.sample_value(xi);
+      const double pdf_xi = pdf(sampled_mu);
+
+      // weight modifer should be wm = pdf/g; where g = abs(pdf)/M; leading to
+      // wm = +/-M
+      if (pdf_xi < 0.0) {
+        return {sampled_mu, -abs_weight_mod_};
       }
+
+      return {sampled_mu, abs_weight_mod_};
+    }
   }
 
   double pdf(double mu) const {
@@ -98,9 +109,10 @@ class MGAngleDistribution {
   std::vector<double> mu_;
   std::vector<double> pdf_;
   std::vector<double> cdf_;
-
-  double area_wm = 0.0; // area for modifed pdf for weight modifer distribution
-  bool is_pdf_neg = false; // Make it true, if pdf is negative. 
+  pndl::PCTable abs_pdf_;  // PCTable for sampling for negative distribution
+  double abs_weight_mod_ = 1.0;  // area under abs distribution of negative pdf,
+                                 // will used for normalization.
+  bool pdf_is_neg = false;       // Make it true, if pdf is negative.
 
   double histogram_interp(double xi, std::size_t l) const {
     return mu_[l] + ((xi - cdf_[l]) / pdf_[l]);

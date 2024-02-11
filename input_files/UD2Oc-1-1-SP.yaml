@@ -36,16 +36,30 @@ sources:
       energy: 0.5
     weight: 1.
 
+entropy:
+  shape: [4, 4, 4]
+  low: [-18.30563081, -18.30563081, -18.30563081]
+  hi:  [18.30563081,  18.30563081,  18.30563081]
+
+tallies:
+  - shape: [10, 10, 10]
+    low: [-18.30563081, -18.30563081, -18.30563081]
+    hi: [18.30563081, 18.30563081, 18.30563081]
+    name: flux_UD2Oc-1-1-SP
+    quantity: flux
+    estimator: track-length
+    energy-bounds: [0, 1]
+
 cancelator:
   type: approximate
   low: [-18.30563081, -18.30563081, -18.30563081]
   hi: [18.30563081, 18.30563081, 18.30563081]
-  shape: [100000, 100000, 100000]
+  shape: [50, 50, 50]
 
 settings:
-  nparticles: 100000
-  ngenerations: 2000
-  nignored: 50
+  nparticles: 1000000
+  ngenerations: 2500
+  nignored: 500
   ngroups: 1
   transport: delta-tracking
   simulation: k-eigenvalue

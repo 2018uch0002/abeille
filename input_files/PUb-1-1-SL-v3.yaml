@@ -65,7 +65,7 @@ entropy:
   hi:  [ 0.79606,  100.,  100.]
 
 tallies:
-  - shape: [1000, 1, 1]
+  - shape: [100, 1, 1]
     low: [-0.79606, -100, -100]
     hi: [0.79606, 100, 100] 
     name: flux_PUb-1-1-SL
@@ -77,7 +77,7 @@ cancelator:
   type: approximate
   low: [-0.79606, -100., -100.]
   hi: [0.79606, 100., 100.]
-  shape: [100000, 1, 1]
+  shape: [100, 1, 1]
 
 settings:
   nparticles: 1000000

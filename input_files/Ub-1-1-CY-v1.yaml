@@ -37,15 +37,29 @@ sources:
       energy: 0.5
     weight: 1.
 
+entropy:
+  shape: [5, 5, 1]
+  low: [-6.940205668, -6.940205668, -100.]
+  hi:  [ 6.940205668,  6.940205668,  100.]
+
+tallies:
+  - shape: [20, 20, 1]
+    low: [-6.940205668, -6.940205668, -100]
+    hi: [ 6.940205668, 6.940205668, 100]
+    name: flux_Ub-1-1-CY
+    quantity: flux
+    estimator: track-length
+    energy-bounds: [0, 1]
+
 cancelator:
   type: approximate
   low: [-6.940205668, -6.940205668,-100]
   hi: [6.940205668, 6.940205668, 100]
-  shape: [100, 100, 1]
+  shape: [50, 50, 1]
 
 settings:
-  nparticles: 10000
-  ngenerations: 5000
+  nparticles: 1000000
+  ngenerations: 2500
   nignored: 500
   ngroups: 1
   transport: delta-tracking
