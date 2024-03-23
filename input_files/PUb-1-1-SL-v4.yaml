@@ -87,6 +87,6 @@ settings:
   #transport: surface-tracking
   transport: delta-tracking
   simulation: k-eigenvalue
-#  cancellation: true
+  cancellation: true
   energy-mode: multi-group
   energy-bounds: [0, 1]

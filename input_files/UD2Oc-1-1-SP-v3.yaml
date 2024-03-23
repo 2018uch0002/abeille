@@ -1,0 +1,69 @@
+# Case for negative scattering distribution 
+# Problem No.43 (Analytical Benchmark test for code verification)
+# UD2Oc-1-1-SP
+# k_eff = 1.0
+
+materials:
+  - name: U-D2O-C
+    id: 1
+    total: [0.54628]
+    absorption: [0.081942]
+    fission: [0.054628]
+    nu: [1.6964]
+    chi: [[1.]]
+    scatter: [[0.464338]]
+    P1: [[-0.5997882362]]
+
+surfaces:
+  - {type: sphere, x0: 0., y0: 0., z0: 0., r: 18.30563081, boundary: vacuum, id: 1}
+
+cells:
+  - {region: "-1", material: 1, id: 1}
+
+universes:
+  - {cells: [1], id: 1}
+
+root-universe: 1
+
+sources:
+  - spatial:
+      type: point
+      position: [0., 0., 0.]
+    direction:
+      type: isotropic
+    energy:
+      type: mono-energetic
+      energy: 0.5
+    weight: 1.
+
+entropy:
+  shape: [4, 4, 4]
+  low: [-18.30563081, -18.30563081, -18.30563081]
+  hi:  [18.30563081,  18.30563081,  18.30563081]
+
+tallies:
+  - shape: [10, 10, 10]
+    low: [-18.30563081, -18.30563081, -18.30563081]
+    hi: [18.30563081, 18.30563081, 18.30563081]
+    name: flux_UD2Oc-1-1-SP
+    quantity: flux
+    estimator: track-length
+    energy-bounds: [0, 1]
+
+cancelator:
+  type: approximate
+  low: [-18.30563081, -18.30563081, -18.30563081]
+  hi: [18.30563081, 18.30563081, 18.30563081]
+  shape: [75, 75, 75]
+
+settings:
+  nparticles: 1000000
+  ngenerations: 2500
+  nignored: 500
+  ngroups: 1
+  transport: delta-tracking
+  simulation: k-eigenvalue
+  cancellation: true
+  energy-mode: multi-group
+  energy-bounds: [0, 1]
+

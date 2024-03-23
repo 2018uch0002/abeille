@@ -37,6 +37,15 @@ tallies:
     name: flux_UD2O-2-1-SL
     estimator: track-length
 
+tallies:
+  - shape: [1, 1, 1]
+    low: [-929.45, -50., -50.]
+    hi:  [ 929.45,  50.,  50.]
+    energy-bounds: [0., 1., 2.]
+    quantity: flux
+    name: flux_1-bin-UD2O-2-1-SL
+    estimator: track-length
+
 entropy:
   shape: [200, 1, 1]
   low: [-929.45, -50., -50.]
@@ -56,8 +65,8 @@ sources:
 
 settings:
   nparticles: 1000000
-  ngenerations: 6000
-  nignored: 1000
+  ngenerations: 2
+  nignored: 1
   ngroups: 2
   transport: surface-tracking
   simulation: k-eigenvalue

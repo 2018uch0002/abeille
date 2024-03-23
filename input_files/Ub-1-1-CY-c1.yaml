@@ -1,0 +1,70 @@
+# Case for negative scattering distribution 
+# Problem No.37 (Analytical Benchmark test for code verification)
+# Ub-1-1-CY
+# k_eff = 1.0
+
+materials:
+  - name: U-235-b
+    id: 1
+    total: [0.32640]
+    absorption: [0.078336]
+    fission: [0.065280]
+    nu: [2.7]
+    chi: [[1.]]
+    scatter: [[0.248064]]
+    P1: [[0.8552631579]]
+
+surfaces:
+  - {type: zcylinder, x0: 0., y0: 0., r: 6.940205668, boundary: vacuum, id: 1}
+  - {type: zplane, z0: 100, boundary: reflective, id: 2}
+  - {type: zplane, z0: -100, boundary: reflective, id: 3}
+cells:
+  - {region: "-1 & -2 & +3", material: 1, id: 1}
+
+universes:
+  - {cells: [1], id: 1}
+
+root-universe: 1
+
+sources:
+  - spatial:
+      type: point
+      position: [0., 0., 0.]
+    direction:
+      type: isotropic
+    energy:
+      type: mono-energetic
+      energy: 0.5
+    weight: 1.
+
+entropy:
+  shape: [5, 5, 1]
+  low: [-6.940205668, -6.940205668, -100.]
+  hi:  [ 6.940205668,  6.940205668,  100.]
+
+tallies:
+  - shape: [20, 20, 1]
+    low: [-6.940205668, -6.940205668, -100]
+    hi: [ 6.940205668, 6.940205668, 100]
+    name: flux_Ub-1-1-CY
+    quantity: flux
+    estimator: track-length
+    energy-bounds: [0, 1]
+
+cancelator:
+  type: approximate
+  low: [-6.940205668, -6.940205668,-100]
+  hi: [6.940205668, 6.940205668, 100]
+  shape: [50, 50, 1]
+
+settings:
+  nparticles: 1000000
+  ngenerations: 2500
+  nignored: 500
+  ngroups: 1
+  transport: delta-tracking
+  simulation: k-eigenvalue
+  cancellation: true
+  energy-mode: multi-group
+  energy-bounds: [0, 1]
+
