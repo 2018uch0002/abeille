@@ -23,6 +23,7 @@
  *
  * */
 #include <materials/legendre_distribution.hpp>
+#include <materials/mg_tabulated_distribution.hpp>
 #include <utils/constants.hpp>
 
 #include <vector>
@@ -102,7 +103,7 @@ void LegendreDistribution::initialize_values() {
   }
 }
 
-MGAngleDistribution LegendreDistribution::linearize() const {
+std::shared_ptr<MGAngleDistribution> LegendreDistribution::linearize() const {
   std::vector<double> mu{-1., 1.};
   std::vector<double> p;
   p.push_back(pdf(-1.));
@@ -151,5 +152,5 @@ MGAngleDistribution LegendreDistribution::linearize() const {
   }
 
   // Construct and return the linearly interpolable distribution.
-  return MGAngleDistribution(mu, p, cdf);
+  return std::make_shared<MGTabulatedDistribution>(mu, p, cdf);
 }

@@ -42,7 +42,7 @@ class MGNuclide : public Nuclide {
             const std::vector<std::vector<double>>& chi,
             const std::vector<std::vector<double>>& Es,
             const std::vector<std::vector<double>>& yield,
-            const std::vector<std::vector<MGAngleDistribution>>& angle,
+            const std::vector<std::vector<std::shared_ptr<MGAngleDistribution>>> angle,
             const std::vector<double>& P_dlyd_grp,
             const std::vector<double>& decay_cnsts,
             const std::vector<std::vector<double>>& delayed_chi);
@@ -98,7 +98,7 @@ class MGNuclide : public Nuclide {
   const std::vector<std::vector<double>>& chi() const { return chi_; }
   const std::vector<std::vector<double>>& Ps() const { return Ps_; }
   const std::vector<std::vector<double>>& mult() const { return mult_; }
-  const std::vector<std::vector<MGAngleDistribution>>& angles() const {
+  const std::vector<std::vector<std::shared_ptr<MGAngleDistribution>>> angles() const {
     return angle_dists_;
   }
   const std::vector<double>& P_dlyd_grp() const { return P_delayed_group; }
@@ -118,7 +118,7 @@ class MGNuclide : public Nuclide {
   std::vector<std::vector<double>> delayed_chi_;
   std::vector<std::vector<double>> Ps_;
   std::vector<std::vector<double>> mult_;
-  std::vector<std::vector<MGAngleDistribution>> angle_dists_;
+  std::vector<std::vector<std::shared_ptr<MGAngleDistribution>>> angle_dists_;
   std::vector<double> P_delayed_group;
   std::vector<double> delayed_group_decay_constants;
   bool fissile_ = false;

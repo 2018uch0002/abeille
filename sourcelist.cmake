@@ -3,7 +3,7 @@ set(ABEILLE_SOURCE_FILES ${ABEILLE_SOURCE_FILES}
   src/material_helper.cpp
   src/ce_nuclide.cpp
   src/mg_nuclide.cpp
-  src/mg_angle_distribution.cpp
+  src/mg_tabulated_distribution.cpp
   src/legendre_distribution.cpp
   src/nuclide.cpp
   src/nd_directory.cpp

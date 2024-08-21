@@ -31,6 +31,7 @@
 #include <array>
 #include <cmath>
 #include <vector>
+#include <memory>
 
 class LegendreDistribution {
  public:
@@ -116,7 +117,7 @@ class LegendreDistribution {
     return true;
   }
 
-  MGAngleDistribution linearize() const;
+  std::shared_ptr<MGAngleDistribution> linearize() const;
 
  private:
   std::vector<double> a_;

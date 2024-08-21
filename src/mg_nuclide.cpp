@@ -41,7 +41,7 @@ MGNuclide::MGNuclide(const std::vector<double>& speeds,
                      const std::vector<std::vector<double>>& chi,
                      const std::vector<std::vector<double>>& Es,
                      const std::vector<std::vector<double>>& yield,
-                     const std::vector<std::vector<MGAngleDistribution>>& angle,
+                     const std::vector<std::vector<std::shared_ptr<MGAngleDistribution>>> angle,
                      const std::vector<double>& P_dlyd_grp,
                      const std::vector<double>& decay_cnsts,
                      const std::vector<std::vector<double>>& delayed_chi)
@@ -472,7 +472,7 @@ ScatterInfo MGNuclide::sample_scatter(double /*Ein*/, const Direction& u,
 
   // Change direction
   std::pair<double, double> mu_and_weight_modifier =
-      angle_dists_[micro_xs.energy_index][ei].sample_mu(rng);
+      angle_dists_[micro_xs.energy_index][ei]->sample_mu(rng);
   double mu = mu_and_weight_modifier.first;
 
   double phi = 2. * PI * rng();
@@ -739,8 +739,8 @@ std::shared_ptr<MGNuclide> make_mg_nuclide(const YAML::Node& mat, uint32_t id) {
     }
   }
 
-  std::vector<std::vector<MGAngleDistribution>> angles(
-      settings::ngroups, std::vector<MGAngleDistribution>(settings::ngroups));
+  std::vector<std::vector<std::shared_ptr<MGAngleDistribution>>> angles(
+      settings::ngroups, std::vector<std::shared_ptr<MGAngleDistribution>>(settings::ngroups));
 
   for (std::size_t i = 0; i < settings::ngroups; i++) {
     for (std::size_t o = 0; o < settings::ngroups; o++) {
@@ -749,7 +749,7 @@ std::shared_ptr<MGNuclide> make_mg_nuclide(const YAML::Node& mat, uint32_t id) {
 
     // Check the in-scattering distributions. If zero for mu = 1, then we
     // can't use virtual collisions in exact cancellation.
-    if (angles[i][i].pdf(1.) == 0.) settings::use_virtual_collisions = false;
+    if (angles[i][i]->pdf(1.) == 0.) settings::use_virtual_collisions = false;
   }
 
   //===========================================================================

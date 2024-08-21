@@ -257,7 +257,7 @@ double ExactMGCancelator::get_f(const Position& r1, const Direction& u1,
   const double mu = u.dot(u1);
 
   // Get scattering pdf
-  const double pdf_mu = nuclide->angles()[g1][g3].pdf(mu);
+  const double pdf_mu = nuclide->angles()[g1][g3]->pdf(mu);
 
   // Get the pdf for the chi portion
   const double pdf_chi = CHI_MATRIX ? nuclide->chi()[g3][g4] : 1.;
