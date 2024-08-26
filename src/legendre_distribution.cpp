@@ -103,7 +103,7 @@ void LegendreDistribution::initialize_values() {
   }
 }
 
-std::shared_ptr<MGAngleDistribution> LegendreDistribution::linearize() const {
+std::shared_ptr<MGTabulatedDistribution> LegendreDistribution::linearize() const {
   std::vector<double> mu{-1., 1.};
   std::vector<double> p;
   p.push_back(pdf(-1.));

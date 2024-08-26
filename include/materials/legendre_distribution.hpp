@@ -25,7 +25,7 @@
 #ifndef LEGENDRE_DISTRIBUTION_H
 #define LEGENDRE_DISTRIBUTION_H
 
-#include <materials/mg_angle_distribution.hpp>
+#include <materials/mg_tabulated_distribution.hpp>
 #include <utils/rng.hpp>
 
 #include <array>
@@ -117,7 +117,7 @@ class LegendreDistribution {
     return true;
   }
 
-  std::shared_ptr<MGAngleDistribution> linearize() const;
+  std::shared_ptr<MGTabulatedDistribution> linearize() const;
 
  private:
   std::vector<double> a_;
