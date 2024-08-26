@@ -1,6 +1,8 @@
 #include <materials/mg_linear_pdf_reconstruction.hpp>
 
-MGLinearReconstruction::MGLinearReconstruction(double p1_moment)
+#include <sstream>
+
+MGLinearReconstruction::MGLinearReconstruction(double p1_moment, std::size_t mat_id)
     :mu_mean_(p1_moment), interscept_(), slope_(), x_0(), A(), B() {
 
     // make the flag variable for the postive and negative mean true or false respectively
@@ -10,11 +12,15 @@ MGLinearReconstruction::MGLinearReconstruction(double p1_moment)
         check_mu_mean_positive = false;
 
     if (mu_mean_ == 1.0 && check_mu_mean_positive == true ){
-        fatal_error("a linear approximate cannot be reconstructed, as the first moment is 1.");
+        std::stringstream mssg;
+        mssg << "a linear approximate cannot be reconstructed, as the first moment is 1 with material id "<<mat_id;
+        fatal_error(mssg.str());
     }
     
     if (mu_mean_ == -1.0 && check_mu_mean_positive == false ){
-        fatal_error("a linear approximate cannot be reconstructed, as the first moment is -1.");
+        std::stringstream mssg;
+        mssg << "a linear approximate cannot be reconstructed, as the first moment is -1. with material id" << mat_id;
+        fatal_error(mssg.str());
     }
 
     if (check_mu_mean_positive == true){

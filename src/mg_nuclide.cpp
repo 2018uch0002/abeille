@@ -28,6 +28,7 @@
 #include <utils/error.hpp>
 #include <utils/rng.hpp>
 #include <utils/settings.hpp>
+#include <materials/mg_angle_distribution.hpp>
 
 #include <cstdint>
 #include <sstream>
@@ -744,7 +745,7 @@ std::shared_ptr<MGNuclide> make_mg_nuclide(const YAML::Node& mat, uint32_t id) {
 
   for (std::size_t i = 0; i < settings::ngroups; i++) {
     for (std::size_t o = 0; o < settings::ngroups; o++) {
-      angles[i][o] = legendre_angles[i][o].linearize();
+        //angles[i][o] = make_mg_angle_distribution(legendre_angles[i][o], id);
     }
 
     // Check the in-scattering distributions. If zero for mu = 1, then we

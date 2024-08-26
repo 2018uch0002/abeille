@@ -1,9 +1,10 @@
 #include <materials/mg_linear_delta_pdf_reconstruction.hpp>
+#include <utils/constants.hpp>
 
 MGLinearDeltaReconstruction::MGLinearDeltaReconstruction(double p1_moment)
     : mu_mean_(p1_moment){
 
-    if ( mu_mean_ > 0.0 ){
+    if ( mu_mean_ >= 0.0 ){
         check_mu_mean_positive = true;
         interscept_ = 3.0 * 0.25 * (1.0 - mu_mean_);
         slope_ = interscept_;
@@ -27,7 +28,7 @@ double MGLinearDeltaReconstruction::pdf(double x) const {
     double pdf_value = interscept_ + slope_ * x;
 
     if ( x == mu0 ){
-        return pdf_value + coeff_delta;
+        return INF;
     }
     return pdf_value;
 }

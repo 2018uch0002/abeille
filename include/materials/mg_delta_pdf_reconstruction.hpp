@@ -3,26 +3,24 @@
 
 #include <materials/mg_angle_distribution.hpp>
 #include <utils/error.hpp>
+#include <utils/constants.hpp>
 
 //==============================
 // Discrete Reconstruction
 // P(x) = delta(x - mean) 
-class DiscreteReconstruction : public MGAngleDistribution{
+class MGDeltaReconstruction : public MGAngleDistribution{
     public:
-    DiscreteReconstruction() {
-        fatal_error("a discrte approximate distribution can be constructed, a cosine mean is required.");
-     }
-    DiscreteReconstruction( double p1_moment) : mu_mean_(p1_moment){}
+    MGDeltaReconstruction( double p1_moment) : mu_mean_(p1_moment){}
 
         double pdf(double /* x */) const override final {
-            return 1.;
+            return INF;
         }
 
         double cdf(double /* x */ ) {
             return 1.;
         }
 
-        std::pair<double, double> sample_mu(RNG& rng) const  override final{
+        std::pair<double, double> sample_mu(RNG& /*rng*/) const  override final{
             return {mu_mean_, 1.};
         }
     

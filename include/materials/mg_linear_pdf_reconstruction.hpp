@@ -9,11 +9,7 @@
 // P(x) = a + b * x for x_0 <= x <=1
 class MGLinearReconstruction : public MGAngleDistribution {
     public:
-    MGLinearReconstruction() {
-        fatal_error("a linear approximate distribution can be constructed, a cosine mean is required.");
-    }
-
-    MGLinearReconstruction(double p1_moment);
+    MGLinearReconstruction(double p1_moment, std::size_t mat_id);
 
     double pdf(double x) const override final;
 

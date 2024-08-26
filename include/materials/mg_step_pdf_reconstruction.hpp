@@ -10,10 +10,8 @@
 // P(x) = { a for -1 <= x < c and 0 for c<= x <= 1 } when mean of cosine is negative
 class MGStepReconstruction : public MGAngleDistribution{
     public:
-    MGStepReconstruction() {
-        fatal_error("a step approximate distribution can be constructed, a cosine mean is required.");
-    }
-    MGStepReconstruction(double p1_moment);
+    
+    MGStepReconstruction(double p1_moment, std::size_t mat_id);
 
     double pdf(double x) const override final;
 

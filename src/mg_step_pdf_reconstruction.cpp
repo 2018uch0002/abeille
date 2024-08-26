@@ -1,6 +1,8 @@
 #include <materials/mg_step_pdf_reconstruction.hpp>
 
-MGStepReconstruction::MGStepReconstruction(double p1_moment)
+#include <sstream>
+
+MGStepReconstruction::MGStepReconstruction(double p1_moment, std::size_t mat_id)
     : mu_mean_(p1_moment), start_step_point_(), step_value_()
     {
     if ( mu_mean_ >= 0.0 ){
@@ -10,12 +12,14 @@ MGStepReconstruction::MGStepReconstruction(double p1_moment)
         check_positive_mean = false;
 
     if ( (check_positive_mean== true) && (mu_mean_ == 1.0)){
-        std::cout<<"a step approximate cannot be reconstructed, as the first moment is 1.";
-        abort();
+        std::stringstream mssg;
+        mssg<<"a step approximate cannot be reconstructed, as the first moment is 1 with material id " << mat_id;
+        fatal_error(mssg.str());
     }
     if ((check_positive_mean== false) && (mu_mean_ == -1.0)){
-        std::cout<<"a step approximate cannot be reconstructed, as the first moment is 1.";
-        abort();
+        std::stringstream mssg;
+        mssg<<"a step approximate cannot be reconstructed, as the first moment is 1 with material id "<< mat_id;
+        fatal_error(mssg.str());
     }
     if (check_positive_mean == true){
         start_step_point_ = 2.0 * mu_mean_ - 1.0;

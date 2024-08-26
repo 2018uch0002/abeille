@@ -11,7 +11,7 @@
 
 #include <PapillonNDL/pctable.hpp>
 
-class MGTabulatedDistribution : public MGAngleDistribution  {
+class MGTabulatedDistribution : public MGAngleDistribution{
  public:
   // Isotropic Constructor
   MGTabulatedDistribution();

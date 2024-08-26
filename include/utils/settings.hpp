@@ -71,6 +71,9 @@ extern EnergyMode energy_mode;
 extern std::vector<double> energy_bounds;
 extern uint32_t ngroups;
 std::size_t group(double E);
+// MG-scattering distribution type
+enum class MGScatterDistributionType { Tabulated, DiscreteAngle, StepApproximate, LinearApproximate, LinearDeltaApproximate, DeltaApproximate, SemiContinuousLinear };
+extern MGScatterDistributionType scatter_distribution_type;
 
 extern bool chi_matrix;
 extern bool use_virtual_collisions;

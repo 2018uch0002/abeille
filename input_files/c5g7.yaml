@@ -339,6 +339,7 @@ settings:
   energy-mode: multi-group
   ngroups: 7
   energy-bounds: [0, 1, 2, 3, 4, 5, 6, 7]
+  scattering-distribution: linear-approximate
 
 simulation:
   mode: k-eigenvalue

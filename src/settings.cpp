@@ -48,6 +48,8 @@ bool use_urr_ptables = true;
 
 EnergyMode energy_mode = EnergyMode::CE;
 
+MGScatterDistributionType scatter_distribution_type = MGScatterDistributionType::Tabulated;
+
 uint64_t rng_seed = 19073486328125;
 uint64_t rng_stride = 152917;
 RNG rng;

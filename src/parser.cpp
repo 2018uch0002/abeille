@@ -469,6 +469,33 @@ void make_settings(const YAML::Node& input) {
       if (settings::energy_bounds.front() == 0.) {
         settings::energy_bounds.front() = 1.E-11;
       }
+
+      settings::scatter_distribution_type = settings::MGScatterDistributionType::Tabulated;
+
+      // check for the scatter-distribution type
+      // by default, it will be tabulated;
+      if ( settnode["scattering-distribution"] && settnode["scattering-distribution"].IsScalar() ){
+        std::string scatter_distr_name = settnode["scattering-distribution"].as<std::string>();
+        if (scatter_distr_name == "tabulated"){
+          settings::scatter_distribution_type = settings::MGScatterDistributionType::Tabulated;
+        } else if (scatter_distr_name == "discrete-angle"){
+          settings::scatter_distribution_type = settings::MGScatterDistributionType::DiscreteAngle;
+        } else if (scatter_distr_name == "step-approximate"){
+          settings::scatter_distribution_type = settings::MGScatterDistributionType::StepApproximate;
+        } else if (scatter_distr_name == "linear-approximate"){
+          settings::scatter_distribution_type = settings::MGScatterDistributionType::LinearApproximate;
+        } else if (scatter_distr_name == "linear-delta-approximate"){
+          settings::scatter_distribution_type = settings::MGScatterDistributionType::LinearDeltaApproximate;
+        } else if (scatter_distr_name == "delta-approximate"){
+          settings::scatter_distribution_type = settings::MGScatterDistributionType::DeltaApproximate;
+        } else if (scatter_distr_name == "semicontinuous"){
+            settings::scatter_distribution_type = settings::MGScatterDistributionType::SemiContinuousLinear;
+        }else {
+          fatal_error("Unknown type of scattering-distribution type is given in the multigroup-settings.");
+        }
+      } else {
+        settings::scatter_distribution_type = settings::MGScatterDistributionType::Tabulated;
+      }
     }
 
     // Get roulette settings

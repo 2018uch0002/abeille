@@ -202,4 +202,7 @@ class LegendreDistribution {
   void initialize_values();
 };
 
+std::shared_ptr<MGAngleDistribution> make_mg_angle_distribution(const LegendreDistribution& legendre_dist, const std::size_t mat_id);
+
+
 #endif

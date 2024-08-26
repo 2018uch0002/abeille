@@ -27,12 +27,8 @@
 
 #include <utils/rng.hpp>
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <vector>
+#include <memory>
 
-#include <PapillonNDL/pctable.hpp>
 
 class MGAngleDistribution {
  public:
@@ -42,5 +38,8 @@ class MGAngleDistribution {
   virtual double pdf(double mu) const = 0;
 
 };
+
+// to make the angle 
+// std::shared_ptr<MGAngleDistribution> make_mg_angle_distribution(const LegendreDistribution& legendre_dist, const std::size_t mat_id);
 
 #endif
