@@ -14,7 +14,8 @@ class CylinderFilter : public PositionFilter {
 
   CylinderFilter(Position origin, double radius, double dx, double dy,
                  double dz, std::size_t nx, std::size_t ny, std::size_t nz,
-                 Orientation z_, std::size_t id);
+                 Orientation z_, std::vector<std::vector<std::size_t>> exclude_indices, 
+                 std::size_t id);
 
   StaticVector3 get_indices(const Tracker& tktr) const override final;
 
@@ -58,6 +59,9 @@ class CylinderFilter : public PositionFilter {
   // these index-locations are based on the real-position of x, y, z. Not based
   // on the class orientation
   bool infinite_length_ = false;  // to incorporate the infinte cylinder
+
+  std::vector<std::vector<std::size_t>> exclude_indices_; // to exclude the some cyliders
+
   // To map the indexes to either converting into class co-ordinate or into
   // original
   void map_indexes(StaticVector3& indexes) const {
@@ -115,6 +119,16 @@ class CylinderFilter : public PositionFilter {
     }
     return reduce_;
   }
+
+  // if exclude indices are given, then search in it
+  bool check_in_exclude_indices(std::vector<std::size_t> index) const{
+    for (std::size_t i = 0; i < exclude_indices_.size(); i++){
+      if ( exclude_indices_[i] == index ){
+        return true;
+      }
+    }
+    return false;
+  } 
 
 };
 

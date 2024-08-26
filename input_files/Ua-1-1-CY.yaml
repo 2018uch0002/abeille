@@ -29,6 +29,7 @@ tally-filters:
       axis: z
       shape: [1, 1, 1]
       pitch: [12., 12., 200.]
+      #exclude-indices: [[0, 0, 0]]
 
     - id: 2
       type: regular-cartesian-mesh
@@ -63,7 +64,7 @@ settings:
 
 simulation:
   mode: k-eigenvalue
-  nparticles: 1000000
+  nparticles: 100000
   ngenerations: 1050
   nignored: 50
   sources:

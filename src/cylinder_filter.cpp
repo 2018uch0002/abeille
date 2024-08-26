@@ -8,7 +8,8 @@
 
 CylinderFilter::CylinderFilter(Position origin, double radius, double dx,
                                double dy, double dz, std::size_t nx,
-                               std::size_t ny, std::size_t nz, Orientation z_,
+                               std::size_t ny, std::size_t nz, Orientation z_, 
+                               std::vector<std::vector<std::size_t>> exclude_indices,
                                std::size_t id)
     : PositionFilter(id),
       origin_(origin),
@@ -30,7 +31,8 @@ CylinderFilter::CylinderFilter(Position origin, double radius, double dx,
       inv_dz_(),
       x_index(),
       y_index(),
-      z_index() {
+      z_index(),
+      exclude_indices_(exclude_indices) {
   // Map the parameters according to the orientation
   // since this class can do the caluclation assumind z-axis as axial
   // therefore, all the parameter will be mapped to z-axis,
@@ -139,6 +141,8 @@ CylinderFilter::CylinderFilter(Position origin, double radius, double dx,
   if (Real_nz_ == 1) {
     z_index = 0;
   }
+  
+  // store the excluding indices
 }
 
 StaticVector3 CylinderFilter::get_indices(const Tracker& tktr) const {
@@ -169,6 +173,12 @@ StaticVector3 CylinderFilter::get_indices(const Tracker& tktr) const {
       indices.push_back(static_cast<std::size_t>(nx));
       indices.push_back(static_cast<std::size_t>(ny));
       indices.push_back(static_cast<std::size_t>(nz));
+      if ( !exclude_indices_.empty()){
+        std::vector<std::size_t> excl_index(indices.begin(), indices.end()); 
+        if ( check_in_exclude_indices({indices[0], indices[1], indices[2]}) == true ){
+          return {};
+        }
+      }
       map_indexes(indices);
       return reduce_dimension(indices[0], indices[1], indices[2]);
     }
@@ -465,8 +475,26 @@ std::shared_ptr<CylinderFilter> make_cylinder_filter(const YAML::Node& node) {
     fatal_error(mssg.str());
   }
 
+  std::vector<std::vector<std::size_t>> exclude_index;
+  if (node["exclude-indices"]){
+    if(!node["exclude-indices"].IsSequence()){
+      std::stringstream mssg;
+      mssg << "Invalid entry for exclude-indices for cylinder filter id: "<<id ;
+      fatal_error(mssg.str());
+    }
+    exclude_index = node["exclude-indices"].as<std::vector<std::vector<std::size_t>>>();
+    // check if each elemnt has three entries or not
+    for( std::size_t i = 0; i < exclude_index.size(); i++){
+      if (exclude_index[i].size() != 3){
+        std::stringstream mssg;
+        mssg <<"At index " << i << " of exclude-indices list, its shape is not 3 for cylinder filter id: " << id ;
+        fatal_error(mssg.str());
+      }
+    }
+  }
+
   // Make the filter
   return std::make_shared<CylinderFilter>(origin, radius, pitches[0],
                                           pitches[1], pitches[2], nx, ny, nz,
-                                          orientation, id);
+                                          orientation, exclude_index, id);
 }
