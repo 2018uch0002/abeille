@@ -2,6 +2,9 @@
 #include <utils/error.hpp>
 #include <utils/constants.hpp>
 
+#include <iomanip>
+#include <limits>
+#include <fstream>
 #include <cmath>
 #include <sstream>
 
@@ -50,12 +53,12 @@ MGSemicontinuousDistribution::MGSemicontinuousDistribution(const std::vector<dou
     const double term3_plus = 2. * (A_plus + A_plus_star) * (a_plus - a_plus_star)*(a_plus - a_plus_star);
     const double B2_plus = std::sqrt( term1_plus + term2_plus + term3_plus );
     const double beta1_plus = (B1_plus + B2_plus) * 0.5 / A_plus_star;
-    if ( beta1_plus >= 0. && beta1_plus <= 1.){
+    if ( beta1_plus > 0. && beta1_plus <= 1.){
         if ( beta_ > beta1_plus )
             beta_ = beta1_plus;
     }
     const double beta2_plus = (B1_plus - B2_plus) * 0.5 / A_plus_star;
-    if ( beta2_plus >= 0. && beta2_plus <= 1. ){
+    if ( beta2_plus > 0. && beta2_plus <= 1. ){
         if ( beta_ > beta2_plus )
             beta_ = beta2_plus;
     }
@@ -70,12 +73,12 @@ MGSemicontinuousDistribution::MGSemicontinuousDistribution(const std::vector<dou
     const double term3_minus = 2. * (A_minus + A_minus_star) * (a_minus - a_minus_star)*(a_minus - a_minus_star);
     const double B2_minus = std::sqrt( term1_minus + term2_minus + term3_minus );
     const double beta1_minus = (B1_minus + B2_minus) * 0.5 / A_minus_star;
-    if ( beta1_minus >= 0. && beta1_minus <= 1.){
+    if ( beta1_minus > 0. && beta1_minus <= 1.){
         if ( beta_ > beta1_minus)
             beta_ = beta1_minus;
     }
     const double beta2_minus = (B1_minus - B2_minus) * 0.5 / A_minus_star;
-    if ( beta2_minus >= 0. && beta2_minus <= 1. ){
+    if ( beta2_minus > 0. && beta2_minus <= 1. ){
         if ( beta_ > beta2_minus)
             beta_ = beta2_minus;
     }
@@ -91,6 +94,68 @@ MGSemicontinuousDistribution::MGSemicontinuousDistribution(const std::vector<dou
     x2_ = 0.5 * (lambda_bar - S_bar);
 
     p_ = 2. * sigma_1_sq_bar / ( S_bar*S_bar + S_bar*(lambda_bar - 2.*M1_) );
+
+    // conditions
+    if ( beta_ < 0. || beta_ > 1. ){
+        std::ofstream file("semi_continuous_fatal_error.txt", std::ios::app);
+        if ( file.is_open() ){
+            file << "mat-id = " << mat_id <<"\n";
+            file << "f1 = " << legendre_moments[1] <<"\n";
+            file << "f2 = " << legendre_moments[2] <<"\n";
+            file << "f3 = " << legendre_moments[3] <<"\n";
+            file << "beta = " <<std::fixed<< std::setprecision(std::numeric_limits<double>::max_digits10)<< beta_ << "\n" << "p = " << p_ << "\nx1 = " << x1_ << "\nx2 = " << x2_<<"\n\n";
+            file << "\n\n";
+        }
+        file.close();
+        std::stringstream mssg;
+        mssg << "The parameter \'beta\' is not between 0. and 1. with material id "<< mat_id; 
+        warning(mssg.str());
+    } 
+    if ( p_ < 0. || p_ > 1. ){
+                std::ofstream file("semi_continuous_fatal_error.txt", std::ios::app);
+        if ( file.is_open() ){
+            file << "mat-id = " << mat_id <<"\n";
+            file << "f1 = " << legendre_moments[1] <<"\n";
+            file << "f2 = " << legendre_moments[2] <<"\n";
+            file << "f3 = " << legendre_moments[3] <<"\n";
+            file << "beta = " <<std::fixed<< std::setprecision(std::numeric_limits<double>::max_digits10)<< beta_ << "\n" << "p = " << p_ << "\nx1 = " << x1_ << "\nx2 = " << x2_<<"\n\n";
+            file << "\n\n";
+        }
+        file.close();
+        std::stringstream mssg;
+        mssg << "The parameter \'p\' is not between 0. and 1. with material id "<< mat_id; 
+        warning(mssg.str());
+    } 
+    if ( std::abs(x1_) > 1. + 1E-15 ){
+        std::ofstream file("semi_continuous_fatal_error.txt", std::ios::app);
+        if ( file.is_open() ){
+            file << "mat-id = " << mat_id <<"\n";
+            file << "f1 = " << legendre_moments[1] <<"\n";
+            file << "f2 = " << legendre_moments[2] <<"\n";
+            file << "f3 = " << legendre_moments[3] <<"\n";
+            file << "beta = " <<std::fixed<< std::setprecision(std::numeric_limits<double>::max_digits10)<< beta_ << "\n" << "p = " << p_ << "\nx1 = " << x1_ << "\nx2 = " << x2_<<"\n\n";
+            file << "\n\n";
+        }
+        file.close();
+        std::stringstream mssg;
+        mssg << "The parameter \'x1\' is not between 0. and 1. with material id "<< mat_id; 
+        warning(mssg.str());
+    } 
+    if ( std::abs(x2_) > 1. + 1E-15 ){
+        std::ofstream file("semi_continuous_fatal_error.txt", std::ios::app);
+        if ( file.is_open() ){
+            file << "mat-id = " << mat_id <<"\n";
+            file << "f1 = " << legendre_moments[1] <<"\n";
+            file << "f2 = " << legendre_moments[2] <<"\n";
+            file << "f3 = " << legendre_moments[3] <<"\n";
+            file << "beta = " <<std::fixed<< std::setprecision(std::numeric_limits<double>::max_digits10)<< beta_ << "\n" << "p = " << p_ << "\nx1 = " << x1_ << "\nx2 = " << x2_<<"\n\n";
+            file << "\n\n";
+        }
+        file.close();
+        std::stringstream mssg;
+        mssg << "The parameter \'x2\' is not between 0. and 1. with material id "<< mat_id; 
+        warning(mssg.str());
+    }
 
 }
 
