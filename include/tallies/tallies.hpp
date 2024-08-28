@@ -233,6 +233,26 @@ class Tallies {
 
   void set_scoring(bool scr) { scoring_ = scr; }
 
+  ITally* get_itally_pointer(const std::string& search_name){
+    // search in the collision-itally
+    for (auto& t : new_itally_collision_){
+      if ( t->name() == search_name )
+        return t.get();
+    }
+    // search in the track-length-itally
+    for (auto& t : new_itally_track_length_){
+      if ( t->name() == search_name )
+        return t.get();
+    }
+    // search in the source-itally
+    for (auto& t : new_itally_source_){
+      if ( t->name() == search_name )
+        return t.get();
+    }
+    // if not found return nullptr
+    return nullptr;
+  }
+
  private:
   Tallies();
   bool scoring_ = true;

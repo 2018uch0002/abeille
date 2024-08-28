@@ -31,6 +31,7 @@
 #include <utils/parser.hpp>
 #include <utils/settings.hpp>
 #include <utils/timer.hpp>
+#include <tallies/tallies.hpp>
 
 #include <docopt.h>
 
@@ -195,6 +196,10 @@ int main(int argc, char** argv) {
       Output::instance().write(" FATAL ERROR: " + mssg + ".\n");
       parsed_file = false;
     }
+
+    // get the pointer to coupling tally
+    auto& tallies = Tallies::instance();
+    ITally* coupling_tally_pointer = tallies.get_itally_pointer(settings::coupling_tally_name);
 
     if (parsed_file) {
       // Try to run simulation

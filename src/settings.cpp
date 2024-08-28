@@ -79,6 +79,8 @@ bool use_dbrc = true;
 std::vector<std::string> dbrc_nuclides;
 TempInterpolation temp_interpolation = TempInterpolation::Linear;
 
+std::string coupling_tally_name = ""; 
+
 void initialize_global_rng() {
   rng.seed(rng_seed);
   rng.set_stream(2);

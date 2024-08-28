@@ -550,6 +550,12 @@ void make_settings(const YAML::Node& input) {
       Output::instance().write(
           " RNG stride = " + std::to_string(settings::rng_seed) + " ...\n");
     }
+
+    // coupleing tally name
+    if ( settnode["couling-tally"] && settnode["coupling-tally"].IsScalar() ){
+      settings::coupling_tally_name = settnode["coupling-tally"].as<std::string>();
+    }
+
   } else {
     // Use default settings for everything.
 

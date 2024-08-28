@@ -82,6 +82,9 @@ extern TempInterpolation temp_interpolation;
 extern bool use_dbrc;
 extern std::vector<std::string> dbrc_nuclides;
 
+// coupling-tally-name
+extern std::string coupling_tally_name;
+
 void initialize_nd_directory();
 
 void initialize_global_rng();
