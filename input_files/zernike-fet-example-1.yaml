@@ -51,7 +51,7 @@ tallies:
     estimator: collision
 
   - type: general
-    position-filter: 2
+    position-filter: 1
     energy-filter: 1
     quantity: flux
     name: mesh-tally
@@ -65,7 +65,7 @@ settings:
 
 simulation:
   mode: k-eigenvalue
-  nparticles: 1000000
+  nparticles: 100000
   ngenerations: 1050
   nignored: 50
   sources:
