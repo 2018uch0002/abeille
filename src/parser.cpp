@@ -552,7 +552,7 @@ void make_settings(const YAML::Node& input) {
     }
 
     // coupleing tally name
-    if ( settnode["couling-tally"] && settnode["coupling-tally"].IsScalar() ){
+    if ( settnode["coupling-tally"] && settnode["coupling-tally"].IsScalar() ){
       settings::coupling_tally_name = settnode["coupling-tally"].as<std::string>();
     }
 

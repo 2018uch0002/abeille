@@ -197,11 +197,11 @@ int main(int argc, char** argv) {
       parsed_file = false;
     }
 
-    // get the pointer to coupling tally
-    auto& tallies = Tallies::instance();
-    ITally* coupling_tally_pointer = tallies.get_itally_pointer(settings::coupling_tally_name);
-
     if (parsed_file) {
+      // get the pointer to coupling tally
+      auto& tallies = Tallies::instance();
+      ITally* coupling_tally_pointer = tallies.get_itally_pointer(settings::coupling_tally_name);
+
       // Try to run simulation
       simulation->initialize();
 
@@ -210,6 +210,8 @@ int main(int argc, char** argv) {
       std::signal(SIGTERM, signal_handler);
 
       simulation->run();
+
+      // do tally manipulation here for coupling.
     }
 
   } else {
