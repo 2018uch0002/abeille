@@ -371,8 +371,8 @@ class CylinderFilter:
             nz = math.floor( (point.z() - self.__low.z()) / self.__pitch_z )     
         
         
-        new_origin_x = self.__origin.x() - self.__pitch_x * self.__Nx
-        new_origin_y = self.__origin.y() - self.__pitch_y * self.__Ny
+        new_origin_x = self.__origin.x() - self.__pitch_x * nx
+        new_origin_y = self.__origin.y() - self.__pitch_y * ny
         indices = []
         if ( nx >=0 and nx < self.__Nx 
             and ny >= 0 and ny < self.__Ny
