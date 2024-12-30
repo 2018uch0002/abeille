@@ -4,7 +4,7 @@
 
 MGLinearReconstruction::MGLinearReconstruction(double p1_moment, std::size_t mat_id)
     :mu_mean_(p1_moment), interscept_(), slope_(), x_0(), A(), B() {
-
+    std::cout << "---->>>> We are at the linear. " << p1_moment <<"\n" << std::endl; 
     // make the flag variable for the postive and negative mean true or false respectively
     if ( mu_mean_ >= 0.0)
         check_mu_mean_positive = true;

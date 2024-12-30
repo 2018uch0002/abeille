@@ -5,6 +5,7 @@
 MGStepReconstruction::MGStepReconstruction(double p1_moment, std::size_t mat_id)
     : mu_mean_(p1_moment), start_step_point_(), step_value_()
     {
+        std::cout << "---->>>> We are at the step. " << p1_moment <<"\n" << std::endl; 
     if ( mu_mean_ >= 0.0 ){
         check_positive_mean = true;
         }

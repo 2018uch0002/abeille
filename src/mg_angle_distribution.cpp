@@ -10,10 +10,12 @@
 #include <utils/error.hpp>
 
 
-std::shared_ptr<MGAngleDistribution> make_mg_angle_distribution(const LegendreDistribution& legendre_dist, const std::size_t mat_id){
+std::shared_ptr<MGAngleDistribution> make_mg_angle_distribution(const LegendreDistribution& legendre_dist, 
+                                                                const std::size_t mat_id,
+                                                                const bool is_pos_pdf){
     
     // if tabulated is distribution type.
-    if ( settings::scatter_distribution_type == settings::MGScatterDistributionType::Tabulated){
+    if ( (settings::scatter_distribution_type == settings::MGScatterDistributionType::Tabulated) || (is_pos_pdf == true)){
         return legendre_dist.linearize();
     }
 
@@ -37,14 +39,23 @@ std::shared_ptr<MGAngleDistribution> make_mg_angle_distribution(const LegendreDi
             mssg << "The approximate distribution cannot be made in the isotropic distribution with material id " << mat_id;
             fatal_error(mssg.str());
         }
-        if ( settings::scatter_distribution_type == settings::MGScatterDistributionType::StepApproximate){
-            return std::make_shared<MGStepReconstruction>(moments[1], mat_id);
-        } else if ( settings::scatter_distribution_type == settings::MGScatterDistributionType::LinearApproximate){
-            return std::make_shared<MGLinearReconstruction>(moments[1], mat_id);
-        } else if ( settings::scatter_distribution_type == settings::MGScatterDistributionType::LinearDeltaApproximate){
-            return std::make_shared<MGLinearDeltaReconstruction>(moments[1]);
-        } else if (settings::scatter_distribution_type == settings::MGScatterDistributionType::DeltaApproximate){
-            return std::make_shared<MGDeltaReconstruction>(moments[1]);
+        if (is_pos_pdf == true){
+            std::stringstream mssg;
+            mssg << "the pdf is positive, and still want to approximate the distribution, why?? ";
+            mssg << "\nwe will be making it MGTabulated because distribution is positive. ";
+            warning(mssg.str());
+            return legendre_dist.linearize();
+
+        } else {
+            if ( settings::scatter_distribution_type == settings::MGScatterDistributionType::StepApproximate){
+                return std::make_shared<MGStepReconstruction>(moments[1], mat_id);
+            } else if ( settings::scatter_distribution_type == settings::MGScatterDistributionType::LinearApproximate){
+                return std::make_shared<MGLinearReconstruction>(moments[1], mat_id);
+            } else if ( settings::scatter_distribution_type == settings::MGScatterDistributionType::LinearDeltaApproximate){
+                return std::make_shared<MGLinearDeltaReconstruction>(moments[1]);
+            } else if (settings::scatter_distribution_type == settings::MGScatterDistributionType::DeltaApproximate){
+                return std::make_shared<MGDeltaReconstruction>(moments[1]);
+            }
         }
     }
 

@@ -10,7 +10,9 @@
 // P(x) = delta(x - mean) 
 class MGDeltaReconstruction : public MGAngleDistribution{
     public:
-    MGDeltaReconstruction( double p1_moment) : mu_mean_(p1_moment){}
+    MGDeltaReconstruction( double p1_moment) : mu_mean_(p1_moment){
+        std::cout << "---->>>> We are at the delta or discrete. " << p1_moment <<"\n" << std::endl; 
+    }
 
         double pdf(double /* x */) const override final {
             return INF;

@@ -3,6 +3,7 @@
 
 MGLinearDeltaReconstruction::MGLinearDeltaReconstruction(double p1_moment)
     : mu_mean_(p1_moment){
+    std::cout << "---->>>> We are at the linear-delta. " << p1_moment <<"\n" << std::endl; 
 
     if ( mu_mean_ >= 0.0 ){
         check_mu_mean_positive = true;

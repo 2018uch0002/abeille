@@ -745,7 +745,8 @@ std::shared_ptr<MGNuclide> make_mg_nuclide(const YAML::Node& mat, uint32_t id) {
 
   for (std::size_t i = 0; i < settings::ngroups; i++) {
     for (std::size_t o = 0; o < settings::ngroups; o++) {
-        angles[i][o] = make_mg_angle_distribution(legendre_angles[i][o], id);
+      const bool is_pos_pdf = legendre_angles[i][o].positive_over_domain();
+        angles[i][o] = make_mg_angle_distribution(legendre_angles[i][o], id, is_pos_pdf);
     }
 
     // Check the in-scattering distributions. If zero for mu = 1, then we
