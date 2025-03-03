@@ -107,6 +107,8 @@ class Tallies {
   }
   void add_tally(std::shared_ptr<ITally> tally);
 
+  void add_tally_source_cancel(std::shared_ptr<ITally> tally, std::string type); // for pre/post cancellation source
+
   void allocate_batch_arrays(std::size_t nbatches);
 
   void verify_track_length_tallies(bool track_length_transporter) const;
@@ -163,6 +165,34 @@ class Tallies {
               typ == Quantity::Type::ImagSource)
             tally->score_source(p);
         }
+      }
+    }
+  }
+
+  void score_source_precancel(const BankedParticle& p) {
+    if (scoring_ && !new_itally_source_.empty()) {
+      for (auto& tally : new_itally_source_) tally->score_source(p);
+    }
+  }
+
+  void score_source_precancel(const std::vector<BankedParticle>& vp) {
+    if (scoring_ && !new_itally_source_precancel_.empty()) {
+      for (const auto& p : vp) {
+        for (auto& tally : new_itally_source_precancel_) tally->score_source(p);
+      }
+    }
+  }
+
+  void score_source_postcancel(const BankedParticle& p) {
+    if (scoring_ && !new_itally_source_postcancel_.empty()) {
+      for (auto& tally : new_itally_source_postcancel_) tally->score_source(p);
+    }
+  }
+
+  void score_source_postcancel(const std::vector<BankedParticle>& vp) {
+    if (scoring_ && !new_itally_source_postcancel_.empty()) {
+      for (const auto& p : vp) {
+        for (auto& tally : new_itally_source_postcancel_) tally->score_source(p);
       }
     }
   }
@@ -225,6 +255,8 @@ class Tallies {
     for (auto& t : new_itally_collision_) t->set_net_weight(total_weight);
     for (auto& t : new_itally_track_length_) t->set_net_weight(total_weight);
     for (auto& t : new_itally_source_) t->set_net_weight(total_weight);
+    for (auto& t : new_itally_source_precancel_) t->set_net_weight(total_weight);
+    for (auto& t : new_itally_source_postcancel_) t->set_net_weight(total_weight);
   }
 
   int generations() const { return gen; }
@@ -266,6 +298,12 @@ class Tallies {
       new_itally_track_length_;  // New "Itally" vector for track-length
   std::vector<std::shared_ptr<ITally>>
       new_itally_source_;  // New "Itally" vector for source
+  
+  std::vector<std::shared_ptr<ITally>>
+      new_itally_source_precancel_;  // New "Itally" vector for source before cancellation
+  std::vector<std::shared_ptr<ITally>>
+      new_itally_source_postcancel_;  // New "Itally" vector for source after cancellation  
+  
 
   // mapes for the position, cartesian, cylinder-position, and energy-filter
   std::map<std::size_t, std::shared_ptr<PositionFilter>> position_filters_;

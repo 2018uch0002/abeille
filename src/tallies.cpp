@@ -495,6 +495,40 @@ void add_tally(Tallies& tallies, const YAML::Node& node) {
                 tally_name + ".");
   }
 
-  // Add the new_ITally of type ITally into the "tallies"
-  tallies.add_tally(t);
+  if (node["cancelation-source"]){
+    if (!node["souce-score-cancelator"].IsScalar()){
+      fatal_error("Tally " + tally_name + " has invalid entry type entry of souce-score-cancelator ");
+    }
+
+    std::string tally_source_cancel = node["cancelation-source"].as<std::string>();
+    if ( !(tally_source_cancel == "post" || tally_source_cancel == "pre") ){
+     fatal_error("Tally " + tally_name + " has a wrong value in souce-score-cancelator entry."); 
+    }
+
+  } else {
+    // Add the new_ITally of type ITally into the "tallies"
+    tallies.add_tally(t);
+  }
+}
+
+
+void Tallies::add_tally_source_cancel(std::shared_ptr<ITally> tally, std::string type) {
+  tally->set_net_weight(total_weight);
+
+  // Check if the name is taken
+  if (taken_tally_names_.contains(tally->name())) {
+    std::stringstream mssg;
+    mssg << "Multiple tallies with the name \"" << tally->name()
+         << "\" were found.";
+    fatal_error(mssg.str());
+  }
+
+  taken_tally_names_.insert(tally->name());
+
+  // estimator will be Source
+  if (type == "post"){
+    new_itally_source_postcancel_.push_back(tally);
+  } else if (type == "pre"){
+    new_itally_source_precancel_.push_back(tally);
+  } 
 }

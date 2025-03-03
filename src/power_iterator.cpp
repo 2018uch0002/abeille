@@ -453,10 +453,20 @@ void PowerIterator::run() {
     // Get new keff
     Tallies::instance().calc_gen_values();
 
+    // score source before cancellation
+    if (gen > nignored){
+        Tallies::instance().score_source_precancel(next_gen);
+    }
+
     // Do weight cancelation
     if (cancelator) {
       perform_regional_cancellation(cancelator, next_gen);
     }
+
+    // score source post cancellation
+    if (gen > nignored){
+          Tallies::instance().score_source_postcancel(next_gen);
+      }
 
     // Calculate net positive and negative weight
     normalize_weights(nparticles, next_gen, Npos, Nneg, Nnet, Ntot, Wpos, Wneg,
