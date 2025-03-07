@@ -222,6 +222,9 @@ void Tallies::clear_generation() {
   for (auto& tally : new_itally_track_length_) tally->clear_generation();
 
   for (auto& tally : new_itally_source_) tally->clear_generation();
+  
+  for (auto& tally : new_itally_source_precancel_) tally->clear_generation();
+  for (auto& tally : new_itally_source_postcancel_) tally->clear_generation();
 }
 
 void Tallies::calc_gen_values() {
@@ -265,6 +268,10 @@ void Tallies::record_generation(double multiplier) {
     tallly->record_generation(multiplier);
 
   for (auto& tallly : new_itally_source_) tallly->record_generation(multiplier);
+
+  for (auto& tallly : new_itally_source_precancel_) tallly->record_generation(multiplier);
+  for (auto& tallly : new_itally_source_postcancel_) tallly->record_generation(multiplier);
+
 }
 
 void Tallies::write_tallies(bool track_length_compatible) {
@@ -327,6 +334,10 @@ void Tallies::write_tallies(bool track_length_compatible) {
     for (auto& tallly : new_itally_track_length_) tallly->write_tally();
 
     for (auto& tallly : new_itally_source_) tallly->write_tally();
+
+    for (auto& tallly : new_itally_source_precancel_) tallly->write_tally();
+
+    for (auto& tallly : new_itally_source_postcancel_) tallly->write_tally();
   }
 }
 
@@ -496,14 +507,16 @@ void add_tally(Tallies& tallies, const YAML::Node& node) {
   }
 
   if (node["cancelation-source"]){
-    if (!node["souce-score-cancelator"].IsScalar()){
+    if (!node["cancelation-source"].IsScalar()){
       fatal_error("Tally " + tally_name + " has invalid entry type entry of souce-score-cancelator ");
     }
 
-    std::string tally_source_cancel = node["cancelation-source"].as<std::string>();
-    if ( !(tally_source_cancel == "post" || tally_source_cancel == "pre") ){
+    std::string source_cancel_type = node["cancelation-source"].as<std::string>();
+    if ( !(source_cancel_type == "post" || source_cancel_type == "pre") ){
      fatal_error("Tally " + tally_name + " has a wrong value in souce-score-cancelator entry."); 
     }
+
+    tallies.add_tally_source_cancel(t, source_cancel_type);
 
   } else {
     // Add the new_ITally of type ITally into the "tallies"

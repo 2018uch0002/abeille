@@ -170,8 +170,8 @@ class Tallies {
   }
 
   void score_source_precancel(const BankedParticle& p) {
-    if (scoring_ && !new_itally_source_.empty()) {
-      for (auto& tally : new_itally_source_) tally->score_source(p);
+    if (scoring_ && !new_itally_source_precancel_.empty()) {
+      for (auto& tally : new_itally_source_precancel_) tally->score_source(p);
     }
   }
 

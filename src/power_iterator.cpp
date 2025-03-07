@@ -466,7 +466,7 @@ void PowerIterator::run() {
     // score source post cancellation
     if (gen > nignored){
           Tallies::instance().score_source_postcancel(next_gen);
-      }
+    }
 
     // Calculate net positive and negative weight
     normalize_weights(nparticles, next_gen, Npos, Nneg, Nnet, Ntot, Wpos, Wneg,
@@ -484,7 +484,7 @@ void PowerIterator::run() {
 
     // Score the source and gen if passed nignored
     if (gen > nignored) {
-      Tallies::instance().score_source(next_gen);
+      // Tallies::instance().score_source(next_gen);
       Tallies::instance().record_generation();
     }
 
