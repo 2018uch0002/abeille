@@ -484,7 +484,7 @@ void PowerIterator::run() {
 
     // Score the source and gen if passed nignored
     if (gen > nignored) {
-      // Tallies::instance().score_source(next_gen);
+      Tallies::instance().score_source(next_gen);
       Tallies::instance().record_generation();
     }
 
