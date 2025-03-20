@@ -108,7 +108,9 @@ void SurfaceTracker::transport(Particle& p, Tracker& trkr, MaterialHelper& mat,
           }
           mssg << " Currently lost at r = " << trkr.r() << ", u = " << trkr.u()
                << ".";
-          fatal_error(mssg.str());
+          //fatal_error(mssg.str());
+          warning(mssg.str());
+          p.kill();
         }
         mat.set_material(trkr.material(), p.E());
       }
