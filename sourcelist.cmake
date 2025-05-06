@@ -81,4 +81,5 @@ set(ABEILLE_SOURCE_FILES ${ABEILLE_SOURCE_FILES}
   src/cylinder_filter.cpp
   src/zernike_polynomial.cpp
   src/zernike_fet.cpp
+  src/rect_assembly_position_filter.cpp
 )
