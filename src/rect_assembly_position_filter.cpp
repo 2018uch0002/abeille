@@ -30,6 +30,9 @@ RectAssemblyPositionFilter::RectAssemblyPositionFilter(Position r_low, Position 
       Nx_(),
       Ny_(),
       Nz_(),
+      N_gap_x_(),
+      N_gap_y_(),
+      N_gap_z_(),
       real_Nx_(),
       real_Ny_(),
       real_Nz_(),
@@ -51,7 +54,7 @@ RectAssemblyPositionFilter::RectAssemblyPositionFilter(Position r_low, Position 
 
   asmbly_Nx_ = assembly_shape[0];
   asmbly_Ny_ = assembly_shape[1];
-  asmbly_Ny_ = assembly_shape[2];
+  asmbly_Nz_ = assembly_shape[2];
   if (asmbly_Nx_ == 0 || asmbly_Ny_ == 0 || asmbly_Nz_ == 0){
     fatal_error("In position-filter with id: " + std::to_string(id) + ", the number of bins in any direction must be a non-zero.");
   }
@@ -90,6 +93,15 @@ RectAssemblyPositionFilter::RectAssemblyPositionFilter(Position r_low, Position 
     fatal_error("In position-filter with id: " + std::to_string(id) + ", the inter-assembly-gap should not be a negative number.");
   }
 
+  if (inter_asmbly_gap_x_ == 0.) N_gap_x_ = 0;
+  else N_gap_x_ = 1;
+
+  if (inter_asmbly_gap_y_ == 0.) N_gap_y_ = 0;
+  else N_gap_y_ = 1;
+
+  if (inter_asmbly_gap_z_ == 0.) N_gap_z_ = 0;
+  else N_gap_z_ = 1;
+
   dx_bin_ = (assembly_dx_ - inter_asmbly_gap_x_) / static_cast<double>(Nx_);
   dy_bin_ = (assembly_dy_ - inter_asmbly_gap_y_) / static_cast<double>(Ny_);
   dz_bin_ = (assembly_dz_ - inter_asmbly_gap_z_) / static_cast<double>(Nz_); 
@@ -98,9 +110,11 @@ RectAssemblyPositionFilter::RectAssemblyPositionFilter(Position r_low, Position 
   inv_dy_bin_ = 1. / dy_bin_;
   inv_dz_bin_ = 1. / dz_bin_;
 
-  real_Nx_ = Nx_ * asmbly_Nx_;
-  real_Ny_ = Ny_ * asmbly_Ny_;
-  real_Nz_ = Nz_ * asmbly_Nz_;
+  // since the gaps are usually very small therefore, 
+  // the gaps will not be divided into multiple bins on the normal directions
+  real_Nx_ = (N_gap_x_ + Nx_ + N_gap_x_) * asmbly_Nx_;
+  real_Ny_ = (N_gap_y_ + Ny_ + N_gap_y_) * asmbly_Ny_;
+  real_Nz_ = (N_gap_z_ + Nz_ + N_gap_z_) * asmbly_Nz_;
 
   x_index_ = 0;
   y_index_ = 1;
@@ -123,8 +137,74 @@ RectAssemblyPositionFilter::RectAssemblyPositionFilter(Position r_low, Position 
 
 StaticVector3 RectAssemblyPositionFilter::get_indices(
     const Tracker& tktr) const {
+
+      const Position r = tktr.r();
+      StaticVector3 indices;
+
+      const int index_asmbly_x = static_cast<int>(std::floor((r.x() - r_low_.x()) * inv_assembly_dx_));
+      const int index_asmbly_y = static_cast<int>(std::floor((r.y() - r_low_.y()) * inv_assembly_dy_));
+      const int index_asmbly_z = static_cast<int>(std::floor((r.z() - r_low_.z()) * inv_assembly_dz_));
+      
+      if ((index_asmbly_x >=0  && index_asmbly_x < static_cast<int>(asmbly_Nx_)) &&
+          (index_asmbly_y >=0  && index_asmbly_y < static_cast<int>(asmbly_Ny_)) &&
+          (index_asmbly_z >=0  && index_asmbly_z < static_cast<int>(asmbly_Nz_))){
+        
+            // if we are here, means we are some here inside the assembly.
+    
+            const double bin_xmin = r_low_.x() + assembly_dx_ * index_asmbly_x + inter_asmbly_gap_x_ * 0.5;
+            const double bin_ymin = r_low_.y() + assembly_dy_ * index_asmbly_y + inter_asmbly_gap_y_ * 0.5;
+            const double bin_zmin = r_low_.z() + assembly_dz_ * index_asmbly_z + inter_asmbly_gap_z_ * 0.5;
+            
+            const int index_bin_x = static_cast<int>(std::floor((r.x() - bin_xmin) * inv_dx_bin_));
+            const int index_bin_y = static_cast<int>(std::floor((r.y() - bin_ymin) * inv_dy_bin_));
+            const int index_bin_z = static_cast<int>(std::floor((r.z() - bin_zmin) * inv_dz_bin_));
+           
+             
+            std::size_t ix, iy, iz;
+            
+            // check if you are in the region of the excluding the gaps along x-direction 
+            if (index_bin_x >= 0 && index_bin_x < static_cast<int>(Nx_)){
+              ix = index_asmbly_x * (N_gap_x_+Nx_+N_gap_x_) + (N_gap_x_ + index_bin_x);
+            } else if (index_bin_x < 0){ // you are in the gap regions along x-directions
+              ix = index_asmbly_x * (N_gap_x_+Nx_+N_gap_x_) + (N_gap_x_-1);
+            } else if (index_bin_x >= static_cast<int>(Nx_)){
+              ix = index_asmbly_x * (N_gap_x_+Nx_+N_gap_x_) + (N_gap_x_ + Nx_+ N_gap_x_ - 1);
+            } else {
+              fatal_error("postion-filter id: " + std::to_string(this->id()) + ", it should not come here.");
+            }
+            
+            // check if you are in the region of the excluding the gaps along y-direction 
+            if (index_bin_y >= 0 && index_bin_y < static_cast<int>(Ny_)){
+              iy = index_asmbly_y * (N_gap_y_+Ny_+N_gap_y_) + (N_gap_y_ + index_bin_y);
+            } else if (index_bin_y < 0){ // you are in the gap regions along y-directions
+              iy = index_asmbly_y * (N_gap_y_+Ny_+N_gap_y_) + (N_gap_y_-1);
+            } else if (index_bin_y >= static_cast<int>(Ny_)){
+              iy = index_asmbly_y * (N_gap_y_+Ny_+N_gap_y_) + (N_gap_y_ + Ny_+ N_gap_y_ - 1);
+            } else {
+              fatal_error("postion-filter id: " + std::to_string(this->id()) + ", it should not come here.");
+            }
+    
+            // check if you are in the region of the excluding the gaps along z-direction 
+            if (index_bin_z >= 0 && index_bin_z < static_cast<int>(Nz_)){
+              iz = index_asmbly_z * (N_gap_z_+Nz_+N_gap_z_) + N_gap_z_ + index_bin_z;
+            } else if (index_bin_z < 0){ // you are in the gap regions along x-directions
+              ix = index_asmbly_z * (N_gap_z_+Nz_+N_gap_z_) + (N_gap_z_-1);
+            } else if (index_bin_z >= static_cast<int>(Nz_)){
+              ix = index_asmbly_z * (N_gap_z_+Nz_+N_gap_z_) + (N_gap_z_ + Nz_ + N_gap_z_ - 1);
+            } else {
+              fatal_error("postion-filter id: " + std::to_string(this->id()) + ", it should not come here.");
+            }
+    
+            indices = reduce_dimension(ix, iy, iz);
+      }
+
+  return indices;
+}
+
+StaticVector3 RectAssemblyPositionFilter::get_position_index(
+    const Position& r) const {
+
   StaticVector3 indices;
-  const Position r = tktr.r();
 
   const int index_asmbly_x = static_cast<int>(std::floor((r.x() - r_low_.x()) * inv_assembly_dx_));
   const int index_asmbly_y = static_cast<int>(std::floor((r.y() - r_low_.y()) * inv_assembly_dy_));
@@ -134,7 +214,7 @@ StaticVector3 RectAssemblyPositionFilter::get_indices(
       (index_asmbly_y >=0  && index_asmbly_y < static_cast<int>(asmbly_Ny_)) &&
       (index_asmbly_z >=0  && index_asmbly_z < static_cast<int>(asmbly_Nz_))){
     
-        // if we are here, means we are in some assembly
+        // if we are here, means we are some here inside the assembly.
 
         const double bin_xmin = r_low_.x() + assembly_dx_ * index_asmbly_x + inter_asmbly_gap_x_ * 0.5;
         const double bin_ymin = r_low_.y() + assembly_dy_ * index_asmbly_y + inter_asmbly_gap_y_ * 0.5;
@@ -143,56 +223,83 @@ StaticVector3 RectAssemblyPositionFilter::get_indices(
         const int index_bin_x = static_cast<int>(std::floor((r.x() - bin_xmin) * inv_dx_bin_));
         const int index_bin_y = static_cast<int>(std::floor((r.y() - bin_ymin) * inv_dy_bin_));
         const int index_bin_z = static_cast<int>(std::floor((r.z() - bin_zmin) * inv_dz_bin_));
+       
+         
+        std::size_t ix, iy, iz;
+        
+        // check if you are in the region of the excluding the gaps along x-direction 
+        if (index_bin_x >= 0 && index_bin_x < static_cast<int>(Nx_)){
+          ix = index_asmbly_x * (N_gap_x_+Nx_+N_gap_x_) + (N_gap_x_ + index_bin_x);
+        } else if (index_bin_x < 0){ // you are in the gap regions along x-directions
+          ix = index_asmbly_x * (N_gap_x_+Nx_+N_gap_x_) + (N_gap_x_-1);
+        } else if (index_bin_x >= static_cast<int>(Nx_)){
+          ix = index_asmbly_x * (N_gap_x_+Nx_+N_gap_x_) + (N_gap_x_ + Nx_+ N_gap_x_ - 1);
+        } else {
+          fatal_error("postion-filter id: " + std::to_string(this->id()) + ", it should not come here.");
+        }
+        
+        // check if you are in the region of the excluding the gaps along y-direction 
+        if (index_bin_y >= 0 && index_bin_y < static_cast<int>(Ny_)){
+          iy = index_asmbly_y * (N_gap_y_+Ny_+N_gap_y_) + (N_gap_y_ + index_bin_y);
+        } else if (index_bin_y < 0){ // you are in the gap regions along y-directions
+          iy = index_asmbly_y * (N_gap_y_+Ny_+N_gap_y_) + (N_gap_y_-1);
+        } else if (index_bin_y >= static_cast<int>(Ny_)){
+          iy = index_asmbly_y * (N_gap_y_+Ny_+N_gap_y_) + (N_gap_y_ + Ny_+ N_gap_y_ - 1);
+        } else {
+          fatal_error("postion-filter id: " + std::to_string(this->id()) + ", it should not come here.");
+        }
 
-        if ((index_bin_x >= 0 && index_bin_x < static_cast<int>(Nx_)) &&
-            (index_bin_y >= 0 && index_bin_y < static_cast<int>(Ny_)) &&
-            (index_bin_z >= 0 && index_bin_z < static_cast<int>(Nz_))){
-              indices = reduce_dimension(index_asmbly_x * Nx_ + index_bin_x, index_asmbly_y * Ny_ + index_bin_y, index_asmbly_z * Nz_ + index_bin_z);
-            }
+        // check if you are in the region of the excluding the gaps along z-direction 
+        if (index_bin_z >= 0 && index_bin_z < static_cast<int>(Nz_)){
+          iz = index_asmbly_z * (N_gap_z_+Nz_+N_gap_z_) + N_gap_z_ + index_bin_z;
+        } else if (index_bin_z < 0){ // you are in the gap regions along x-directions
+          ix = index_asmbly_z * (N_gap_z_+Nz_+N_gap_z_) + (N_gap_z_-1);
+        } else if (index_bin_z >= static_cast<int>(Nz_)){
+          ix = index_asmbly_z * (N_gap_z_+Nz_+N_gap_z_) + (N_gap_z_ + Nz_ + N_gap_z_ - 1);
+        } else {
+          fatal_error("postion-filter id: " + std::to_string(this->id()) + ", it should not come here.");
+        }
+
+        indices = reduce_dimension(ix, iy, iz);
   }
-
   return indices;
-}
-
-StaticVector3 RectAssemblyPositionFilter::get_position_index(
-    const Position& r) const {
-      fatal_error("yet to be implemented");
-  // StaticVector3 indices;
-  // const int index_x =
-  //     static_cast<int>(std::floor((r.x() - r_low_.x()) * dx_inv_));
-  // const int index_y =
-  //     static_cast<int>(std::floor((r.y() - r_low_.y()) * dy_inv_));
-  // const int index_z =
-  //     static_cast<int>(std::floor((r.z() - r_low_.z()) * dz_inv_));
-
-  // if ((index_x >= 0 && index_x < static_cast<int>(Nx_)) &&
-  //     (index_y >= 0 && index_y < static_cast<int>(Ny_)) &&
-  //     (index_z >= 0 && index_z < static_cast<int>(Nz_))) {
-  //   indices = reduce_dimension(index_x, index_y, index_z);
-  // }
-
-  // return indices;
 }
 
 double RectAssemblyPositionFilter::x_min(const StaticVector3& index) const {
   if (real_Nx_ == 1) {
     return r_low_.x();
   }
-  const int index_assmbly_x = static_cast<int>(std::floor(index[x_index_] / Nx_));
-  const int index_bin_x = index[x_index_] - index_assmbly_x * Nx_;
-  const double xmin_bin = r_low_.x() + static_cast<double>(index_assmbly_x) * assembly_dx_ + 0.5 * inter_asmbly_gap_x_ + static_cast<double>(index_bin_x) * dx_bin_;
-  return xmin_bin;
+
+  const std::size_t index_assmbly_x = static_cast<std::size_t>(std::floor(index[x_index_] / (N_gap_x_ + Nx_ + N_gap_x_)));
+  const std::size_t index_bin_x = static_cast<std::size_t>(index[x_index_] - index_assmbly_x * (N_gap_x_ + Nx_ + N_gap_x_));
+  const double xmin_asmbly = r_low_.x() + static_cast<double>(index_assmbly_x) * assembly_dx_;
+  if ((index_bin_x + 1) == N_gap_x_){
+    return xmin_asmbly; // first portion of inter-assembly-gap inside the assembly
+  } else if ((index_bin_x+1) <= (N_gap_x_ + Nx_)){ 
+    // inside the fuel-pins
+    return xmin_asmbly + 0.5 * inter_asmbly_gap_x_ * static_cast<double>(N_gap_x_) + static_cast<double>(index_bin_x-N_gap_x_) * dx_bin_; 
+  } 
+
+  // last portion of inter-assembly-gap inside the assembly
+  return xmin_asmbly + assembly_dx_ - 0.5 * inter_asmbly_gap_x_ * static_cast<double>(N_gap_x_);
 }
 
 double RectAssemblyPositionFilter::x_max(const StaticVector3& index) const {
   if (real_Nx_ == 1) {
     return r_high_.x();
   }
-  const int index_assmbly_x = static_cast<int>(std::floor(index[x_index_] / Nx_));
-  const int index_bin_x = index[x_index_] - index_assmbly_x * Nx_;
-  const double xmax_bin = r_low_.x() + static_cast<double>(index_assmbly_x) * assembly_dx_ + 0.5 * inter_asmbly_gap_x_ + (static_cast<double>(index_bin_x) + 1) * dx_bin_;
-  
-  return xmax_bin;
+  const std::size_t index_assmbly_x = static_cast<std::size_t>(std::floor(index[x_index_] / (N_gap_x_ + Nx_ + N_gap_x_)));
+  const std::size_t index_bin_x = static_cast<std::size_t>(index[x_index_] - index_assmbly_x * (N_gap_x_ + Nx_ + N_gap_x_));
+  const double xmin_asmbly = r_low_.x() + static_cast<double>(index_assmbly_x) * assembly_dx_;
+  if ((index_bin_x + 1) == N_gap_x_){
+    return xmin_asmbly + 0.5 * inter_asmbly_gap_x_ * static_cast<double>(N_gap_x_); // first portion of inter-assembly-gap inside the assembly
+  } else if ((index_bin_x+1) <= (N_gap_x_ + Nx_)){ 
+    // inside the fuel-pins
+    return xmin_asmbly + 0.5 * inter_asmbly_gap_x_ * static_cast<double>(N_gap_x_) + static_cast<double>(index_bin_x-N_gap_x_) * dx_bin_ + dx_bin_; 
+  } 
+
+  // last portion of inter-assembly-gap inside the assembly
+  return xmin_asmbly + assembly_dx_;
 }
 
 double RectAssemblyPositionFilter::y_min(const StaticVector3& index) const {
@@ -200,41 +307,70 @@ double RectAssemblyPositionFilter::y_min(const StaticVector3& index) const {
     return r_low_.y();
   }
 
-  const int index_assmbly_y = static_cast<int>(std::floor(index[y_index_] / Ny_));
-  const int index_bin_y = index[y_index_] - index_assmbly_y * Ny_;
-  const double ymin_bin = r_low_.y() + static_cast<double>(index_assmbly_y) * assembly_dy_ + 0.5 * inter_asmbly_gap_y_ + static_cast<double>(index_bin_y) * dy_bin_;
-  
-  return ymin_bin;
+  const std::size_t index_assmbly_y = static_cast<std::size_t>(std::floor(index[y_index_] / (N_gap_y_ + Ny_ + N_gap_y_)));
+  const std::size_t index_bin_y = static_cast<std::size_t>(index[y_index_] - index_assmbly_y * (N_gap_y_ + Ny_ + N_gap_y_));
+  const double ymin_asmbly = r_low_.y() + static_cast<double>(index_assmbly_y) * assembly_dy_;
+  if ((index_bin_y + 1) == N_gap_y_){
+    return ymin_asmbly; // first portion of inter-assembly-gap inside the assembly
+  } else if ((index_bin_y+1) <= (N_gap_y_ + Ny_)){ 
+    // inside the fuel-pins
+    return ymin_asmbly + 0.5 * inter_asmbly_gap_y_ * static_cast<double>(N_gap_y_) + static_cast<double>(index_bin_y-N_gap_y_) * dy_bin_; 
+  } 
+
+  // last portion of inter-assembly-gap inside the assembly
+  return ymin_asmbly + assembly_dy_ - 0.5 * inter_asmbly_gap_y_ * static_cast<double>(N_gap_y_);
 }
 
 double RectAssemblyPositionFilter::y_max(const StaticVector3& index) const {
   if (real_Ny_ == 1) return r_high_.y();
   
-  const int index_assmbly_y = static_cast<int>(std::floor(index[y_index_] / Ny_));
-  const int index_bin_y = index[y_index_] - index_assmbly_y * Ny_;
-  const double ymax_bin = r_low_.y() + static_cast<double>(index_assmbly_y) * assembly_dy_ + 0.5 * inter_asmbly_gap_y_ + (static_cast<double>(index_bin_y) + 1) * dy_bin_;
-  
-  return ymax_bin;
+  const std::size_t index_assmbly_y = static_cast<std::size_t>(std::floor(index[y_index_] / (N_gap_y_ + Ny_ + N_gap_y_)));
+  const std::size_t index_bin_y = static_cast<std::size_t>(index[y_index_] - index_assmbly_y * (N_gap_y_ + Ny_ + N_gap_y_));
+  const double ymin_asmbly = r_low_.y() + static_cast<double>(index_assmbly_y) * assembly_dy_;
+  if ((index_bin_y + 1) == N_gap_y_){
+    return ymin_asmbly + 0.5 * inter_asmbly_gap_y_ * static_cast<double>(N_gap_y_); // first portion of inter-assembly-gap inside the assembly
+  } else if ((index_bin_y+1) <= (N_gap_y_ + Ny_)){ 
+    // inside the fuel-pins
+    return ymin_asmbly + 0.5 * inter_asmbly_gap_y_ * static_cast<double>(N_gap_y_) + static_cast<double>(index_bin_y-N_gap_y_) * dy_bin_ + dy_bin_; 
+  } 
+
+  // last portion of inter-assembly-gap inside the assembly
+  return ymin_asmbly + assembly_dy_;
 }
+
 
 double RectAssemblyPositionFilter::z_min(const StaticVector3& index) const {
   if (real_Nz_ == 1) return r_low_.z();
  
-  const int index_assmbly_z = static_cast<int>(std::floor(index[z_index_] / Nz_));
-  const int index_bin_z = index[z_index_] - index_assmbly_z * Nz_;
-  const double zmin_bin = r_low_.z() + static_cast<double>(index_assmbly_z) * assembly_dz_ + 0.5 * inter_asmbly_gap_z_ + static_cast<double>(index_bin_z) * dz_bin_;
+  const std::size_t index_assmbly_z = static_cast<std::size_t>(std::floor(index[z_index_] / (N_gap_z_ + Nz_ + N_gap_z_)));
+  const std::size_t index_bin_z = static_cast<std::size_t>(index[z_index_] - index_assmbly_z * (N_gap_z_ + Nz_ + N_gap_z_));
+  const double zmin_asmbly = r_low_.z() + static_cast<double>(index_assmbly_z) * assembly_dz_;
+  if ((index_bin_z + 1) == N_gap_z_){
+    return zmin_asmbly; // first portion of inter-assembly-gap inside the assembly
+  } else if ((index_bin_z+1) <= (N_gap_z_ + Nz_)){ 
+    // inside the fuel-pins
+    return zmin_asmbly + 0.5 * inter_asmbly_gap_z_ * static_cast<double>(N_gap_z_) + static_cast<double>(index_bin_z-N_gap_z_) * dz_bin_; 
+  } 
 
-  return zmin_bin;
+  // last portion of inter-assembly-gap inside the assembly
+  return zmin_asmbly + assembly_dz_ - 0.5 * inter_asmbly_gap_z_ * static_cast<double>(N_gap_z_);
 }
 
 double RectAssemblyPositionFilter::z_max(const StaticVector3& index) const {
   if (real_Nz_ == 1) return r_high_.z();
 
-  const int index_assmbly_z = static_cast<int>(std::floor(index[z_index_] / Nz_));
-  const int index_bin_z = index[z_index_] - index_assmbly_z * Nz_;
-  const double zmax_bin = r_low_.z() + static_cast<double>(index_assmbly_z) * assembly_dz_ + 0.5 * inter_asmbly_gap_z_ + (static_cast<double>(index_bin_z) + 1)* dz_bin_;
+  const std::size_t index_assmbly_z = static_cast<std::size_t>(std::floor(index[z_index_] / (N_gap_z_ + Nz_ + N_gap_z_)));
+  const std::size_t index_bin_z = static_cast<std::size_t>(index[z_index_] - index_assmbly_z * (N_gap_z_ + Nz_ + N_gap_z_));
+  const double zmin_asmbly = r_low_.z() + static_cast<double>(index_assmbly_z) * assembly_dz_;
+  if ((index_bin_z + 1) == N_gap_z_){
+    return zmin_asmbly + inter_asmbly_gap_z_ * static_cast<double>(N_gap_z_); // first portion of inter-assembly-gap inside the assembly
+  } else if ((index_bin_z+1) <= (N_gap_z_ + Nz_)){ 
+    // inside the fuel-pins
+    return zmin_asmbly + 0.5 * inter_asmbly_gap_z_ * static_cast<double>(N_gap_z_) + static_cast<double>(index_bin_z-N_gap_z_) * dz_bin_ + dz_bin_; 
+  } 
 
-  return zmax_bin;
+  // last portion of inter-assembly-gap inside the assembly
+  return zmin_asmbly + assembly_dz_;
 }
 
 
@@ -251,7 +387,7 @@ void RectAssemblyPositionFilter::write_to_hdf5(H5::Group& grp) const {
   if (grp.hasAttribute("type")) {
     grp.deleteAttribute("type");
   }
-  grp.createAttribute("type", "regular-cartesian-mesh");
+  grp.createAttribute("type", "rect-assembly-position-filter");
 
   // Save low position
   std::array<double, 3> r_low{r_low_.x(), r_low_.y(), r_low_.z()};
@@ -267,42 +403,96 @@ void RectAssemblyPositionFilter::write_to_hdf5(H5::Group& grp) const {
   }
   grp.createAttribute("high", r_high);
 
-  // Save shape
-  std::array<std::size_t, 3> shape{Nx_, Ny_, Nz_};
+  // Save shape 
+  std::array<std::size_t, 3> real_shape{real_Nx_, real_Ny_, real_Nz_};
   if (grp.hasAttribute("shape")) {
     grp.deleteAttribute("shape");
   }
-  grp.createAttribute("shape", shape);
+  grp.createAttribute("shape", real_shape);
+
+  // Save the shape of the assembly
+  std::array<std::size_t, 3> assembly_shape{asmbly_Nx_, asmbly_Ny_, asmbly_Nz_};
+  if (grp.hasAttribute("assembly-shape")){
+    grp.deleteAttribute("assembly-shape");
+  }
+  grp.createAttribute("assembly-shape", assembly_shape);
+
+  // save the inter assebly gap
+  std::array<double, 3> inter_asmbly_gap{inter_asmbly_gap_x_, inter_asmbly_gap_y_, inter_asmbly_gap_z_};
+  if (grp.hasAttribute("inter-assembly-gap")){
+    grp.deleteAttribute("inter-assembly-gap");
+  } 
+  grp.createAttribute("inter-assembly-gap", inter_asmbly_gap);
+
+  // save the shape of the bins excluding the gaps
+  std::array<std::size_t, 3> bin_shape_in_asmbly{Nx_, Ny_, Nz_};
+  if (grp.hasAttribute("bin-shape-per-assembly")){
+    grp.deleteAttribute("bin-shape-per-assembly");
+  }
+  grp.createAttribute("bin-shape-per-assembly", bin_shape_in_asmbly);
 
   std::vector<double> x_bounds(real_Nx_ + 1, 0.);
   std::size_t itr = 0;
+  double x0 = r_low_.x();
+  x_bounds[itr] = x0; itr++;
   for (std::size_t i = 0; i < asmbly_Nx_; i++ ){
-    double x0 = r_low_.x() + i * assembly_dx_ + inter_asmbly_gap_x_ * 0.5;
-    for (std::size_t j = 0; j <= Nx_; j++){
-      x_bounds[itr] = x0 + dx_bin_ * j;
-      itr++;
+    if (N_gap_x_ == 1){
+      x0 += 0.5 * inter_asmbly_gap_x_;
+      x_bounds[itr] = x0; itr++;
+    }
+
+    for (std::size_t j = 0; j < Nx_; j++){
+      x0 += dx_bin_;
+      x_bounds[itr] = x0; itr++;
+    }
+
+    if (N_gap_x_ == 1){
+      x0 += 0.5 * inter_asmbly_gap_x_;
+      x_bounds[itr] = x0; itr++;
     }
   }
   grp.createDataSet("x-bounds", x_bounds);
 
   std::vector<double> y_bounds(real_Ny_ + 1, 0.);
   itr = 0;
+  double y0 = r_low_.y();
+  y_bounds[itr] = y0; itr++;
   for (std::size_t i = 0; i < asmbly_Ny_; i++ ){
-    double y0 = r_low_.y() + i * assembly_dy_ + inter_asmbly_gap_y_ * 0.5;
-    for (std::size_t j = 0; j <= Ny_; j++){
-      y_bounds[itr] = y0 + dy_bin_ * j;
-      itr++;
+    if (N_gap_y_ == 1){
+      y0 += 0.5 * inter_asmbly_gap_y_;
+      y_bounds[itr] = y0; itr++;
+    }
+
+    for (std::size_t j = 0; j < Ny_; j++){
+      y0 += dy_bin_;
+      y_bounds[itr] = y0; itr++;
+    }
+
+    if (N_gap_y_ == 1){
+      y0 += 0.5 * inter_asmbly_gap_y_;
+      y_bounds[itr] = y0; itr++;
     }
   }
   grp.createDataSet("y-bounds", y_bounds);
 
   std::vector<double> z_bounds(real_Nz_ + 1, 0.);
   itr = 0;
+  double z0 = r_low_.z();
+  z_bounds[itr] = z0; itr++;
   for (std::size_t i = 0; i < asmbly_Nz_; i++ ){
-    double z0 = r_low_.z() + i * assembly_dz_ + inter_asmbly_gap_z_ * 0.5;
-    for (std::size_t j = 0; j <= Nz_; j++){
-      z_bounds[itr] = z0 + dz_bin_ * j;
-      itr++;
+    if (N_gap_z_ == 1){
+      z0 += 0.5 * inter_asmbly_gap_z_;
+      z_bounds[itr] = z0; itr++;
+    }
+
+    for (std::size_t j = 0; j < Nz_; j++){
+      z0 += dz_bin_;
+      z_bounds[itr] = z0; itr++;
+    }
+
+    if (N_gap_z_ == 1){
+      z0 += 0.5 * inter_asmbly_gap_z_;
+      z_bounds[itr] = z0; itr++;
     }
   }
   grp.createDataSet("z-bounds", z_bounds);
@@ -373,7 +563,7 @@ std::shared_ptr<RectAssemblyPositionFilter> make_rect_assembly_position_filter(
     std::stringstream mssg;
     mssg << "For position-filter with id " << id << ", \"inter-assembly-gaps\" are not provided.";
     fatal_error(mssg.str());
-  } else if (!!node["inter-assembly-gap"].IsSequence() || node["inter-assembly-gap"].size() != 3){
+  } else if (!node["inter-assembly-gap"].IsSequence() || node["inter-assembly-gap"].size() != 3){
     std::stringstream mssg;
     mssg << "For position-filter with id " << id
          << ", \"inter-assembly-gap\" must be a sequence of size 3.";

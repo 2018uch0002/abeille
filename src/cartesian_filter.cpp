@@ -1,5 +1,6 @@
 #include <tallies/cartesian_filter.hpp>
 #include <tallies/regular_cartesian_mesh_filter.hpp>
+#include <tallies/rect_assembly_position_filter.hpp>
 #include <utils/constants.hpp>
 
 #include <sstream>
@@ -26,6 +27,8 @@ std::shared_ptr<CartesianFilter> make_cartesian_filter(const YAML::Node& node) {
   std::shared_ptr<CartesianFilter> cartesian_filter = nullptr;
   if (type == "regular-cartesian-mesh") {
     cartesian_filter = make_regular_cartesian_mesh_filter(node);
+  } else if (type == "rect-assembly-filter"){
+    cartesian_filter = make_rect_assembly_position_filter(node);
   } else {
     fatal_error("Unkown cartesian filter type " + type + ".");
   }

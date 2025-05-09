@@ -7,7 +7,6 @@
 #include <array>
 
 // RectAssemblyPositionFilter
-// for excluding the Gap between the assembly radially 
 class RectAssemblyPositionFilter : public CartesianFilter {
  public:
   RectAssemblyPositionFilter(Position r_low, Position r_high, std::vector<std::size_t> assembly_shape,
@@ -19,9 +18,12 @@ class RectAssemblyPositionFilter : public CartesianFilter {
   StaticVector3 get_position_index(const Position& r) const override final;
 
   std::vector<TracklengthDistance> get_indices_tracklength(
-      const Tracker& trkr, double d_flight) const override final{
+      const Tracker& /*trkr*/, double /*d_flight*/) const override final{
     
     fatal_error("track-length capabilites for the react-assembly-position-filter is not implemented yet.");
+
+    std::vector<TracklengthDistance> trk_len_distance;
+    return trk_len_distance;
   }
 
   double x_min(const StaticVector3& index) const override final;
@@ -50,7 +52,7 @@ class RectAssemblyPositionFilter : public CartesianFilter {
     return reduce_dimension(real_Nx_, real_Ny_, real_Nz_);
   }
 
-  std::string type_str() const override { return "regular-assembly-position-filter"; }
+  std::string type_str() const override { return "rect-assembly-position-filter"; }
 
  protected:
   // required for track-length
@@ -77,6 +79,7 @@ class RectAssemblyPositionFilter : public CartesianFilter {
   
   std::size_t asmbly_Nx_, asmbly_Ny_, asmbly_Nz_; // shape of the assembly
   std::size_t Nx_, Ny_, Nz_; // shape of the bin per assembly
+  std::size_t N_gap_x_, N_gap_y_, N_gap_z_; // distrization of gaps in x, y, and z on one side 
   std::size_t real_Nx_, real_Ny_, real_Nz_, x_index_, y_index_, z_index_; // real number of the bins in the filter
 
   // function will reduce the dimsion, if there is only one bin in the direction
