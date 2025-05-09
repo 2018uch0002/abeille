@@ -390,6 +390,7 @@ class Tracker {
 
     this->set_r(p.r());
     this->set_u(p.u());
+    this->set_surface_token(token);
     this->restart_get_current();
   }
 
