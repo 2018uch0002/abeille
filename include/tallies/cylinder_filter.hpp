@@ -88,19 +88,18 @@ class CylinderFilter : public PositionFilter {
     return point;
   }
 
-  // function will reduce the dimsion, if there is only one bin in the direction
+  // function will reduce the dimension, if there is only one bin in the direction
   StaticVector3 reduce_dimension(const size_t& loc_x, const size_t& loc_y,
                                  const size_t& loc_z) const {
     StaticVector3 reduce_;
     if (Real_nx_ == 1 && Real_ny_ == 1 && Real_nz_ == 1) {
-      return {1};
+      return {0};
     }
 
-    if (infinite_length_ == true) {
+    if (infinite_length_ == true)
       if (Nx_ == 1 && Ny_ == 1) {
-        return {1};
+        return {0};
       }
-    }
 
     if (Real_nx_ > 1) {
       reduce_.push_back(loc_x);

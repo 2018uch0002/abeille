@@ -212,10 +212,17 @@ StaticVector3 CylinderFilter::get_position_index(const Position& r) const {
 }
 
 StaticVector3 CylinderFilter::get_shape() const {
+  // shape in case of one cylinder with finite length 
   if (Real_nx_ == 1 && Real_ny_ == 1 && Real_nz_ == 1) {
     return {1};
   }
 
+  // shape in case of one infinite-cylinder
+  if (infinite_length_ == true)
+    if (Nx_ == 1 && Ny_ == 1) {
+      return {1};
+    }
+  
   return reduce_dimension(Real_nx_, Real_ny_, Real_nz_);
 }
 
