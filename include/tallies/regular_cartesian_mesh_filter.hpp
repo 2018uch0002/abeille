@@ -37,6 +37,10 @@ class RegularCartesianMeshFilter : public CartesianFilter {
     return dz_inv_;
   }
 
+  StaticVector3 get_true_shape() const override final {
+    return {Nx_, Ny_, Nz_};
+  }
+
   StaticVector3 get_shape() const override final {
     if (Nx_ == 1 && Ny_ == 1 && Nz_ == 1) {
       return {1};

@@ -28,6 +28,7 @@ class CartesianFilter : public PositionFilter {
   virtual double inv_dz(const StaticVector3& index) const = 0;
 
   std::string type_str() const override { return "Cartesian_Filter"; };
+  virtual StaticVector3 get_true_shape() const = 0;
 
  protected:
   Position r_low_, r_high_;
