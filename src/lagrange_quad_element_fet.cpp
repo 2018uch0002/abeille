@@ -144,24 +144,6 @@ void LagrangeQuadElementFET::score_collision(const Particle& p,
 #pragma omp atomic
 #endif
   tally_gen_score_.element(indices.begin(), indices.end()) += collision_score;
-
-std::cout << "Check wheather we correctly tallying or not with collision socore = " << collision_score << std::endl;
-for (auto&p : position_index)
-  std::cout << p << "\t";
-std::cout << "\n"<< std::endl;
-
-std::vector<std::size_t> itr(tally_gen_score_.shape().begin(), tally_gen_score_.shape().end());
-for (auto&p : itr)
-  std::cout << p << "\t";
-std::cout << "\n"<< std::endl;
-
-for(std::size_t ix : {0, 1, 2, 3}){
-  for(std::size_t iy : {0, 1, 2, 3}){
-    std::cout << "ix = " << ix << ", iy = " << iy << ":\t" << tally_gen_score_(ix, iy) << std::endl;
-  }
-  std::cout << "---------" << std::endl;
-}
-fatal_error("JOB DONE!");
 }
 
 std::string LagrangeQuadElementFET::spacial_domain() const {
