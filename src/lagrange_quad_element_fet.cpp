@@ -20,7 +20,6 @@ LagrangeQuadElementFET::LagrangeQuadElementFET(
       index_z_(),
       loc_e_(0) {
   StaticVector4 tally_shape;
-
   // add the dimension for the energy_in_ only if exist
   if (energy_in_) {
     std::size_t ne = energy_in_->size();
@@ -33,9 +32,6 @@ LagrangeQuadElementFET::LagrangeQuadElementFET(
   if (cartesian_filter_ == nullptr) {
     fatal_error("LagrangeQuadElementFET has nullptr cartesian-filter.");
   }
-  StaticVector3 position_shape = cartesian_filter_->get_shape();
-  tally_shape.insert(tally_shape.end(), position_shape.begin(),
-                     position_shape.end());
 
   // currently only 2D shape is supported.
   if (sd_ == SpacialDomain::XYZ) {
@@ -63,10 +59,10 @@ LagrangeQuadElementFET::LagrangeQuadElementFET(
   }
 
   if (sd_ == SpacialDomain::XY) {
-    tally_shape.push_back(position_shape[0]);
-    tally_shape.push_back(position_shape[1]);
+    tally_shape.push_back(position_shape[0] + 1);
+    tally_shape.push_back(position_shape[1] + 1);
   } else {
-    fatal_error("Only xy plane is supported.")
+    fatal_error("Only xy plane is supported.");
   }
   //   } else if (sd_ == SpacialDomain::YZ) {
   //     tally_shape.push_back(position_shape[1]);
@@ -81,6 +77,16 @@ LagrangeQuadElementFET::LagrangeQuadElementFET(
   if (poly_order_ != 1) {
     fatal_error("LagrangeQuadElementFET only spports linear shape function.");
   }
+
+  // reallocate and fill with zeros for the tally avg, gen-score and variance
+  tally_avg_.resize(tally_shape);
+  tally_avg_.fill(0.0);
+
+  tally_gen_score_.resize(tally_shape);
+  tally_gen_score_.fill(0.0);
+
+  tally_var_.resize(tally_shape);
+  tally_var_.fill(0.0);
 }
 
 void LagrangeQuadElementFET::score_collision(const Particle& p,
@@ -105,14 +111,14 @@ void LagrangeQuadElementFET::score_collision(const Particle& p,
     return;
   }
 
-  indices.push_back(position_index[x_index]);
-  indices.push_back(position_index[y_index]);
+  indices.push_back(position_index[index_x_]);
+  indices.push_back(position_index[index_y_]);
 
   const double Et = mat.Et(p.E());
   const double collision_score =
       particle_base_score(p.E(), p.wgt(), p.wgt2(), &mat) / Et;
 
-// add the score at the xmin-ymin
+  // add the score at the xmin-ymin
 #ifdef ABEILLE_USE_OMP
 #pragma omp atomic
 #endif
@@ -138,9 +144,50 @@ void LagrangeQuadElementFET::score_collision(const Particle& p,
 #pragma omp atomic
 #endif
   tally_gen_score_.element(indices.begin(), indices.end()) += collision_score;
+
+std::cout << "Check wheather we correctly tallying or not with collision socore = " << collision_score << std::endl;
+for (auto&p : position_index)
+  std::cout << p << "\t";
+std::cout << "\n"<< std::endl;
+
+std::vector<std::size_t> itr(tally_gen_score_.shape().begin(), tally_gen_score_.shape().end());
+for (auto&p : itr)
+  std::cout << p << "\t";
+std::cout << "\n"<< std::endl;
+
+for(std::size_t ix : {0, 1, 2, 3}){
+  for(std::size_t iy : {0, 1, 2, 3}){
+    std::cout << "ix = " << ix << ", iy = " << iy << ":\t" << tally_gen_score_(ix, iy) << std::endl;
+  }
+  std::cout << "---------" << std::endl;
+}
+fatal_error("JOB DONE!");
 }
 
-void GeneralTally::write_tally() {
+std::string LagrangeQuadElementFET::spacial_domain() const {
+  switch (sd_) {
+    case SpacialDomain::XY:
+      return "xy";
+      break;
+
+    case SpacialDomain::YZ:
+      return "yz";
+      break;
+
+    case SpacialDomain::XZ:
+      return "xz";
+      break;
+
+    case SpacialDomain::XYZ:
+      return "xyz";
+      break;
+
+    default:
+      return "unknown";
+  }
+}
+
+void LagrangeQuadElementFET::write_tally() {
   // Only master can write tallies, as only master has a copy
   // of the mean and variance.
   if (mpi::rank != 0) return;
@@ -159,6 +206,12 @@ void GeneralTally::write_tally() {
     tally_grp.createAttribute("mt", quantity_.mt);
   }
 
+  // Save the polynomial-order
+  tally_grp.createAttribute("polynomial-order", poly_order_);
+
+  // Save the spatial-domain
+  tally_grp.createAttribute("spatial-domain", spacial_domain());
+
   // Save the estimator
   tally_grp.createAttribute("estimator", estimator_str());
 
@@ -168,9 +221,7 @@ void GeneralTally::write_tally() {
   }
 
   // Save position filter id
-  if (cartesian_filter_) {
-    tally_grp.createAttribute("position-filter", position_filter_->id());
-  }
+  tally_grp.createAttribute("position-filter", cartesian_filter_->id());
 
   // Convert flux_var to the error on the mean
   this->var_to_std_on_mean();
@@ -251,13 +302,14 @@ std::shared_ptr<LagrangeQuadElementFET> make_lagrange_quad_element_fet(
   }
 
   // get the spatial domain
-  LagrangeQuadElementFET::SpacialDomain sd = LagrangeQuadElementFET::SpacialDomain::XY;
-  if (node["spatial-domain"] && node["spatial-domain"].IsScalar()){
+  LagrangeQuadElementFET::SpacialDomain sd =
+      LagrangeQuadElementFET::SpacialDomain::XY;
+  if (node["spatial-domain"] && node["spatial-domain"].IsScalar()) {
     std::string sd_name = node["spatial-domain"].as<std::string>();
-    if (sd_name != "xy"){
-        std::stringstream mssg;
-        mssg << "Tally " << name << " only supports xy spatial-domain.";
-        fatal_error(mssg.str());
+    if (sd_name != "xy") {
+      std::stringstream mssg;
+      mssg << "Tally " << name << " only supports xy spatial-domain.";
+      fatal_error(mssg.str());
     }
   } else if (node["spatial-domain"]) {
     std::stringstream mssg;
@@ -284,10 +336,10 @@ std::shared_ptr<LagrangeQuadElementFET> make_lagrange_quad_element_fet(
   }
 
   // Get the position filter
-  std::shared_ptr<PositionFilter> position_filter = nullptr;
+  std::shared_ptr<CartesianFilter> position_filter = nullptr;
   if (node["position-filter"] && node["position-filter"].IsScalar()) {
     std::size_t position_id = node["position-filter"].as<std::size_t>();
-    position_filter = tallies.get_position_filter(position_id);
+    position_filter = tallies.get_cartesian_filter(position_id);
     if (position_filter == nullptr) {
       std::stringstream mssg;
       mssg << "For tally " << name << ", cannot find position filter with id "
@@ -297,8 +349,10 @@ std::shared_ptr<LagrangeQuadElementFET> make_lagrange_quad_element_fet(
   }
 
   // For the general tally
-  std::shared_ptr<GeneralTally> tally = std::make_shared<GeneralTally>(
-      position_filter, energy_filter, poly_order, , quant, estimator, name);
+  std::shared_ptr<LagrangeQuadElementFET> tally =
+      std::make_shared<LagrangeQuadElementFET>(position_filter, energy_filter,
+                                               poly_order, sd, quant, estimator,
+                                               name);
 
   return tally;
 }

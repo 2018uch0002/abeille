@@ -26,6 +26,7 @@
 #include <tallies/legendre_fet.hpp>
 #include <tallies/tallies.hpp>
 #include <tallies/zernike_fet.hpp>
+#include <tallies/lagrange_quad_element_fet.hpp>
 #include <utils/error.hpp>
 #include <utils/mpi.hpp>
 #include <utils/output.hpp>
@@ -490,6 +491,8 @@ void add_tally(Tallies& tallies, const YAML::Node& node) {
     t = make_legendre_fet(node);
   } else if (tally_type == "zernike-fet") {
     t = make_zernike_fet(node);
+  } else if (tally_type == "lagrange-quad-element-fet") {
+    t = make_lagrange_quad_element_fet(node);
   } else {
     fatal_error("Unknown tally type " + tally_type + " found in tally " +
                 tally_name + ".");

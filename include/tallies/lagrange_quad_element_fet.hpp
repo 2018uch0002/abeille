@@ -5,8 +5,6 @@
 #include <tallies/energy_filter.hpp>
 #include <tallies/itally.hpp>
 
-#include <function>
-
 class LagrangeQuadElementFET : public ITally {
  public:
   enum class SpacialDomain { XY, YZ, XZ, XYZ };
@@ -28,16 +26,18 @@ class LagrangeQuadElementFET : public ITally {
     fatal_error("the track-length for the legendre-fet is not supoorted yet.");
   }
 
-  void score_source(const BankedParticle& p) override final {
+  void score_source(const BankedParticle& /*p*/) override final {
     fatal_error("the track-length for the legendre-fet is not supoorted yet.");
   }
 
-  double evaluate(const Position& r, const double& E) const override final {
+  double evaluate(const Position& /*r*/, const double& /*E*/) const override final {
     fatal_error("the track-length for the legendre-fet is not supoorted yet.");
+    return {};
   }
   std::vector<double> evaluate(
-      const std::vector<std::pair<Position, double>> r_E) const override final {
+      const std::vector<std::pair<Position, double>> /*r_E*/) const override final {
     fatal_error("the track-length for the legendre-fet is not supoorted yet.");
+    return {};
   }
 
   std::size_t get_polynomial_order() { return poly_order_; }
@@ -53,9 +53,9 @@ class LagrangeQuadElementFET : public ITally {
   SpacialDomain sd_;
 
   std::size_t index_x_, index_y_, index_z_, loc_e_;
-
 };
 
-std::shared_ptr<LagrangeQuadElementFET> make_lagrange_quad_element_fet(const YAML::Node& node);
+std::shared_ptr<LagrangeQuadElementFET> make_lagrange_quad_element_fet(
+    const YAML::Node& node);
 
 #endif
