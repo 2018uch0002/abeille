@@ -11,6 +11,7 @@ class CartesianFilter : public PositionFilter {
   virtual ~CartesianFilter() = default;
 
   virtual StaticVector3 get_position_index(const Position& r) const = 0;
+  virtual StaticVector3 get_true_indices(const Tracker& tktr) const = 0;
 
   virtual double x_min(const StaticVector3& index) const = 0;
   virtual double x_max(const StaticVector3& index) const = 0;

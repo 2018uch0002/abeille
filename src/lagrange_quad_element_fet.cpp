@@ -43,20 +43,6 @@ LagrangeQuadElementFET::LagrangeQuadElementFET(
   index_x_ = 0;
   index_y_ = 1;
   index_z_ = 2;
-  if (position_shape[0] == 1) {
-    index_x_ = 0;
-    index_y_--;
-    index_z_--;
-  }
-
-  if (position_shape[1] == 1) {
-    index_y_ = 0;
-    index_z_--;
-  }
-
-  if (position_shape[2] == 1) {
-    index_z_ = 0;
-  }
 
   if (sd_ == SpacialDomain::XY) {
     tally_shape.push_back(position_shape[0] + 1);
@@ -87,7 +73,7 @@ LagrangeQuadElementFET::LagrangeQuadElementFET(
 
   tally_var_.resize(tally_shape);
   tally_var_.fill(0.0);
-}
+ }
 
 void LagrangeQuadElementFET::score_collision(const Particle& p,
                                              const Tracker& trkr,
@@ -105,7 +91,7 @@ void LagrangeQuadElementFET::score_collision(const Particle& p,
   }
 
   // get the cartisian_filter indices
-  StaticVector3 position_index = cartesian_filter_->get_indices(trkr);
+  StaticVector3 position_index = cartesian_filter_->get_true_indices(trkr);
   if (position_index.empty()) {
     // No bin is found, don't score.
     return;
@@ -211,6 +197,7 @@ void LagrangeQuadElementFET::write_tally() {
   // Add data sets for the average and the standard deviation
   std::vector<std::size_t> shape(tally_avg_.shape().begin(),
                                  tally_avg_.shape().end());
+
   auto avg_dset = tally_grp.createDataSet<double>("avg", H5::DataSpace(shape));
   avg_dset.write_raw(tally_avg_.data());
 

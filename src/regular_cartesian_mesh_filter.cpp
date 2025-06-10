@@ -79,6 +79,26 @@ StaticVector3 RegularCartesianMeshFilter::get_indices(
   return indices;
 }
 
+ StaticVector3 RegularCartesianMeshFilter::get_true_indices(const Tracker& tktr) const {
+  StaticVector3 indices;
+  const Position r = tktr.r();
+  const int index_x =
+      static_cast<int>(std::floor((r.x() - r_low_.x()) * dx_inv_));
+  const int index_y =
+      static_cast<int>(std::floor((r.y() - r_low_.y()) * dy_inv_));
+  const int index_z =
+      static_cast<int>(std::floor((r.z() - r_low_.z()) * dz_inv_));
+
+  if ((index_x >= 0 && index_x < static_cast<int>(Nx_)) &&
+      (index_y >= 0 && index_y < static_cast<int>(Ny_)) &&
+      (index_z >= 0 && index_z < static_cast<int>(Nz_))) {
+    indices = {static_cast<std::size_t>(index_x), static_cast<std::size_t>(index_y), static_cast<std::size_t>(index_z)};
+  }
+
+  return indices;
+}
+
+
 StaticVector3 RegularCartesianMeshFilter::get_position_index(
     const Position& r) const {
   StaticVector3 indices;

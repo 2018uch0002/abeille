@@ -5,6 +5,9 @@
 #include <tallies/energy_filter.hpp>
 #include <tallies/itally.hpp>
 
+#include <boost/container/static_vector.hpp>
+using StaticVector4 = boost::container::static_vector<size_t, 4>;
+
 class LagrangeQuadElementFET : public ITally {
  public:
   enum class SpacialDomain { XY, YZ, XZ, XYZ };
