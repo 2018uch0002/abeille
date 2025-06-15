@@ -47,7 +47,7 @@ class CylinderFilter : public PositionFilter {
   void write_to_hdf5(H5::Group& grp) const override final;
 
  private:
-  Position origin_, r_low_;
+  Position origin_, r_low_, r_high_;
   std::size_t Nx_, Ny_, Nz_;
   std::size_t Real_nx_, Real_ny_, Real_nz_;
   Orientation length_axis_;
@@ -64,17 +64,20 @@ class CylinderFilter : public PositionFilter {
     if (length_axis_ == Orientation::Z) {
       return;
     } else if (length_axis_ == Orientation::Y) {
-      std::size_t nz = indexes[2];
-      indexes[2] = indexes[1];
-      indexes[1] = nz;
+      // std::size_t nz = indexes[2];
+      // indexes[2] = indexes[1];
+      // indexes[1] = nz;
+      std::swap(indexes[1], indexes[2]);
       return;
     } else if (length_axis_ == Orientation::X) {
-      std::size_t nz = indexes[2];
-      indexes[2] = indexes[0];
-      indexes[0] = nz;
+      // std::size_t nz = indexes[2];
+      // indexes[2] = indexes[0];
+      // indexes[0] = nz;
+      std::swap(indexes[0], indexes[2]);
       return;
     }
   }
+
   // To map the positions to either converting into class co-ordinate or into
   // original
   Position map_coordinate(const Position& point) const {
@@ -88,7 +91,21 @@ class CylinderFilter : public PositionFilter {
     return point;
   }
 
-  // function will reduce the dimension, if there is only one bin in the direction
+  // To map the directions to either converting into class co-ordinate or into
+  // original
+  Direction map_direction(const Direction& u) const {
+    if (length_axis_ == Orientation::Z) {
+      return u;
+    } else if (length_axis_ == Orientation::Y) {
+      return Direction(u.x(), u.z(), u.y());
+    } else if (length_axis_ == Orientation::X) {
+      return Direction(u.z(), u.y(), u.x());
+    }
+    return u;
+  }
+
+  // function will reduce the dimension, if there is only one bin in the
+  // direction
   StaticVector3 reduce_dimension(const size_t& loc_x, const size_t& loc_y,
                                  const size_t& loc_z) const {
     StaticVector3 reduce_;
@@ -114,6 +131,20 @@ class CylinderFilter : public PositionFilter {
     }
     return reduce_;
   }
+
+  // required for track-length
+  void initialize_indices(const Position& r, const Direction& u, int& i, int& j,
+                          int& k, std::array<int, 3>& on) const;
+  bool find_entry_point(Position& r, const Direction& u, const double& ux_inv,
+                        const double& uy_inv, const double& uz_inv,
+                        double& d_flight) const;
+
+ public:
+  std::pair<double, int> distance_to_next_index(
+      const Position& r, const Direction& u, const double& ux_inv,
+      const double& uy_inv, const double& uz_inv,
+      const double& sine_polar_angle, const std::array<int, 3>& on, int i,
+      int j, int k, double& cross_distance) const;
 };
 
 std::shared_ptr<CylinderFilter> make_cylinder_filter(const YAML::Node& node);

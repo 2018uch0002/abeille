@@ -13,6 +13,7 @@ CylinderFilter::CylinderFilter(Position origin, double radius, double dx,
     : PositionFilter(id),
       origin_(origin),
       r_low_(),
+      r_high_(),
       Nx_(nx),
       Ny_(ny),
       Nz_(nz),
@@ -119,6 +120,9 @@ CylinderFilter::CylinderFilter(Position origin, double radius, double dx,
   double low_x = origin_.x() - pitch_x_ * 0.5;
   double low_y = origin_.y() - pitch_y_ * 0.5;
   r_low_ = Position(low_x, low_y, origin_.z());
+  r_high_ = Position(low_x + pitch_x_ * static_cast<double>(Nx_),
+                     low_y + pitch_y_ * static_cast<double>(Ny_),
+                     origin_.z() + dz_ * static_cast<double>(Nz_));
 
   // Assign the x_index, y_index, and z_index
   // these location will be based on the real_nx, real_ny, and real_nz
@@ -163,8 +167,8 @@ StaticVector3 CylinderFilter::get_indices(const Tracker& tktr) const {
       ny < static_cast<int>(Ny_) &&
       ((nz >= 0 && nz < static_cast<int>(Nz_)) || infinite_length_)) {
     // check if the position is inside the circular radius or not
-    if (sqrt((new_origin_x - r.x()) * (new_origin_x - r.x()) +
-             (new_origin_y - r.y()) * (new_origin_y - r.y())) <=
+    if (std::sqrt((new_origin_x - r.x()) * (new_origin_x - r.x()) +
+                  (new_origin_y - r.y()) * (new_origin_y - r.y())) <=
         (radius_ + 1E-15)) {
       indices.push_back(static_cast<std::size_t>(nx));
       indices.push_back(static_cast<std::size_t>(ny));
@@ -198,9 +202,9 @@ StaticVector3 CylinderFilter::get_position_index(const Position& r) const {
       ny < static_cast<int>(Ny_) &&
       ((nz >= 0 && nz < static_cast<int>(Nz_)) || infinite_length_)) {
     // check if the position is inside the circular radius or not
-    if (sqrt((new_origin_x - maped_r.x()) * (new_origin_x - maped_r.x()) +
-             (new_origin_y - maped_r.y()) * (new_origin_y - maped_r.y())) <=
-        (radius_ + 1E-15)) {
+    if (std::sqrt((new_origin_x - maped_r.x()) * (new_origin_x - maped_r.x()) +
+                  (new_origin_y - maped_r.y()) *
+                      (new_origin_y - maped_r.y())) <= (radius_ + 1E-15)) {
       indices.push_back(static_cast<std::size_t>(nx));
       indices.push_back(static_cast<std::size_t>(ny));
       indices.push_back(static_cast<std::size_t>(nz));
@@ -212,7 +216,7 @@ StaticVector3 CylinderFilter::get_position_index(const Position& r) const {
 }
 
 StaticVector3 CylinderFilter::get_shape() const {
-  // shape in case of one cylinder with finite length 
+  // shape in case of one cylinder with finite length
   if (Real_nx_ == 1 && Real_ny_ == 1 && Real_nz_ == 1) {
     return {1};
   }
@@ -222,16 +226,339 @@ StaticVector3 CylinderFilter::get_shape() const {
     if (Nx_ == 1 && Ny_ == 1) {
       return {1};
     }
-  
+
   return reduce_dimension(Real_nx_, Real_ny_, Real_nz_);
 }
 
 std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
-    const Tracker& /*trkr*/, double /*d_flight*/) const {
-  fatal_error("Not yet implemented.");
+    const Tracker& trkr, double d_flight) const {
+  if (infinite_length_) {
+    fatal_error(
+        "the conditions for infinite cylinder filter is not yet implemented "
+        "for the track-length.");
+  }
+  std::vector<TracklengthDistance> indices_tracklength;
+  TracklengthDistance trlen_d;
 
-  return {};
+  Position r = map_coordinate(trkr.r());
+  const Direction u = map_direction(trkr.u());
+  const double ux_inv = 1. / u.x();
+  const double uy_inv = 1. / u.y();
+  const double uz_inv = 1. / u.z();
+
+  bool inside_bin = false;
+
+  int i = 0, j = 0, k = 0;
+  std::array<int, 3> on;
+  on.fill(0);  // to know we are on which tile
+  initialize_indices(r, u, i, j, k, on);
+
+  // check if particle is inside any bin.
+  if ((i >= 0 && i < static_cast<int>(Nx_)) &&
+      (j >= 0 && j < static_cast<int>(Ny_)) &&
+      ((k >= 0 && k < static_cast<int>(Nz_)) || infinite_length_)) {
+    inside_bin = true;
+  } else {
+    // if particle is not inside, then it can pass through the tally-region.
+    if (find_entry_point(r, u, ux_inv, uy_inv, uz_inv, d_flight) == false) {
+      return indices_tracklength;
+    }
+
+    initialize_indices(r, u, i, j, k, on);
+    if ((i >= 0 && i < static_cast<int>(Nx_)) &&
+        (j >= 0 && j < static_cast<int>(Ny_)) &&
+        ((k >= 0 && k < static_cast<int>(Nz_)) || infinite_length_)) {
+      inside_bin = true;
+    } else {
+      // This is a problem, in theory, we should now be inside the tally
+      // region. We will therefore spew a warning here.
+      warning("Could not locate tile after fast forward to mesh entry.\n");
+    }
+  }
+
+  // Generallized method to get the distance will not work,
+  // if the particle is moving perpendicular to radial plane.
+  if (std::abs(1. - std::abs(u.z())) < SURFACE_COINCIDENT) {
+    // since we are moving perpendicular to radial plane,
+    // check first weather we are inside the circle or not.
+    // if not inside the cylinder's circle, then don't socre and return
+    const double new_origin_x = origin_.x() + pitch_x_ * static_cast<double>(i);
+    const double new_origin_y = origin_.y() + pitch_y_ * static_cast<double>(j);
+    const double xp = (r.x() - new_origin_x);
+    const double yp = (r.y() - new_origin_y);
+
+    if (xp * xp + yp * yp >= radius_ * radius_ + 1E-15) {
+      std::cout << origin_.y() << "\t" << pitch_y_ << std::endl;
+      std::cout << "WE COMING HERE  " << xp << "\t" << yp << "\t"
+                << xp * xp + yp * yp << "\tj= " << j << "\t" << new_origin_y
+                << std::endl;
+      return indices_tracklength;
+    }
+
+    std::cout << "ARE WE COMING HERE \n" << std::endl;
+
+    const int k_increment = static_cast<int>(std::copysign(1., u.z()));
+
+    // now store the distance travelled in the first bin.
+    std::size_t ui = static_cast<std::size_t>(i);
+    std::size_t uj = static_cast<std::size_t>(j);
+    std::size_t uk = static_cast<std::size_t>(k);
+    trlen_d.index = reduce_dimension(ui, uj, uk);
+
+    double zmin = r_low_.z() + static_cast<double>(k) * dz_;
+    double cross_dist = std::abs(r.z() - zmin - (k_increment == -1 ? 0. : dz_));
+    trlen_d.distance = std::min(d_flight, cross_dist);
+    indices_tracklength.push_back(trlen_d);
+
+    d_flight -= cross_dist;  // reduce flight distance by the cross distance.
+    r = r + cross_dist * u;  // move the position to new position.
+
+    if (d_flight < 0) return indices_tracklength;
+
+    // store the distance travelled in the last bin, if it is inside bin.
+    const double rz_last = r.z() + d_flight * u.z();
+    const int nz_final =
+        static_cast<int>(std::floor((rz_last - r_low_.z()) * inv_dz_));
+    if (nz_final >= 0 && nz_final < static_cast<int>(Nz_)) {
+      zmin = r_low_.z() + static_cast<double>(nz_final) * dz_;
+      cross_dist = std::abs(rz_last - zmin - (k_increment == 1 ? 0 : dz_));
+      trlen_d.distance = std::min(d_flight, cross_dist);
+
+      uk = static_cast<std::size_t>(nz_final);
+      trlen_d.index = reduce_dimension(ui, uj, uk);
+      indices_tracklength.push_back(trlen_d);
+      d_flight -= cross_dist;
+    }
+
+    // add index and distance of remaining of the scoring bins
+    // so, start from the index of scoring bin after first index
+    while (d_flight > 0.) {
+      k += k_increment;
+
+      if (0 <= k && k < static_cast<int>(Nz_)) {
+        trlen_d.distance = std::min(d_flight, dz_);
+
+        uk = static_cast<std::size_t>(k);
+        trlen_d.index = reduce_dimension(ui, uj, uk);
+
+        indices_tracklength.push_back(trlen_d);
+
+      } else {
+        // If we arrive here, it means that we have left the tally region.
+        return indices_tracklength;
+      }
+      // subtract the travelled distance
+      d_flight -= dz_;
+      r = r + dz_ * u;
+    }
+
+    std::cout << "ARE WE COMING HERE " << indices_tracklength.size() << " \n"
+              << std::endl;
+
+    return indices_tracklength;
+  }
+
+  return indices_tracklength;
 }
+
+void CylinderFilter::initialize_indices(const Position& r, const Direction& u,
+                                        int& i, int& j, int& k,
+                                        std::array<int, 3>& on) const {
+  on.fill(0);
+
+  // get the index based on the position
+  i = static_cast<int>(std::floor((r.x() - r_low_.x()) * inv_pitch_x_));
+  j = static_cast<int>(std::floor((r.y() - r_low_.y()) * inv_pitch_y_));
+  k = static_cast<int>(std::floor((r.z() - r_low_.z()) * inv_dz_));
+
+  // Get tile boundaries
+  const double xl = r_low_.x() + static_cast<double>(i) * pitch_x_;
+  const double xh = xl + pitch_x_;
+  const double yl = r_low_.y() + static_cast<double>(j) * pitch_y_;
+  const double yh = yl + pitch_y_;
+  const double zl = r_low_.z() + static_cast<double>(k) * dz_;
+  const double zh = zl + dz_;
+
+  // It is necessary to handle case of being on a tile boundary.
+  if (std::abs(xl - r.x()) < SURFACE_COINCIDENT) {
+    if (u.x() < 0.) {
+      i--;
+      on[0] = 1;
+    } else {
+      on[0] = -1;
+    }
+  } else if (std::abs(xh - r.x()) < SURFACE_COINCIDENT) {
+    if (u.x() < 0.) {
+      on[0] = 1;
+    } else {
+      i++;
+      on[0] = -1;
+    }
+  }
+
+  if (std::abs(yl - r.y()) < SURFACE_COINCIDENT) {
+    if (u.y() < 0.) {
+      j--;
+      on[1] = 1;
+    } else {
+      on[1] = -1;
+    }
+  } else if (std::abs(yh - r.y()) < SURFACE_COINCIDENT) {
+    if (u.y() < 0.) {
+      on[1] = 1;
+    } else {
+      j++;
+      on[1] = -1;
+    }
+  }
+
+  if (std::abs(zl - r.z()) < SURFACE_COINCIDENT) {
+    if (u.z() < 0.) {
+      k--;
+      on[2] = 1;
+    } else {
+      on[2] = -1;
+    }
+  } else if (std::abs(zh - r.z()) < SURFACE_COINCIDENT) {
+    if (u.z() < 0.) {
+      on[2] = 1;
+    } else {
+      k++;
+      on[2] = -1;
+    }
+  }
+}
+
+bool CylinderFilter::find_entry_point(Position& r, const Direction& u,
+                                      const double& ux_inv,
+                                      const double& uy_inv,
+                                      const double& uz_inv,
+                                      double& d_flight) const {
+  double d_min = (r_low_.x() - r.x()) * ux_inv;
+  double d_max = (r_high_.x() - r.x()) * ux_inv;
+
+  if (d_min > d_max) {
+    std::swap(d_min, d_max);
+  }
+
+  double d_y_min = (r_low_.y() - r.y()) * uy_inv;
+  double d_y_max = (r_high_.y() - r.y()) * uy_inv;
+
+  if (d_y_min > d_y_max) {
+    std::swap(d_y_min, d_y_max);
+  }
+
+  if ((d_min > d_y_max) || (d_y_min > d_max)) {
+    return false;
+  }
+
+  if (d_y_min > d_min) {
+    d_min = d_y_min;
+  }
+
+  if (d_y_max < d_max) {
+    d_max = d_y_max;
+  }
+
+  double d_z_min = (r_low_.z() - r.z()) * uz_inv;
+  double d_z_max = (r_high_.z() - r.z()) * uz_inv;
+
+  if (d_z_min > d_z_max) {
+    std::swap(d_z_min, d_z_max);
+  }
+
+  if ((d_min > d_z_max) || (d_z_min > d_max)) {
+    return false;
+  }
+
+  if (d_z_min > d_min) {
+    d_min = d_z_min;
+  }
+
+  if (d_z_max < d_max) {
+    d_max = d_z_max;
+  }
+
+  if (d_max < d_min) {
+    std::swap(d_max, d_min);
+  }
+
+  if ((d_max < 0.) && (d_min < 0.)) {
+    return false;
+  }
+
+  if (d_min < 0.) {
+    // If we are here, this means that r is actually inside the mesh, but is
+    // really close to the edge, and we have a direction taking us out.
+    // We should return false here, so that we don't score anything for this
+    // particle track.
+    return false;
+  }
+
+  // If we get here, we intersect the box. Let's update the position and the
+  // flight distance.
+  r = r + d_min * u;
+  d_flight -= d_min;
+  return true;
+}
+
+std::pair<double, int> CylinderFilter::distance_to_next_index(
+    const Position& r, const Direction& u, const double& ux_inv,
+    const double& uy_inv, const double& uz_inv, const double& sine_polar_angle,
+    const std::array<int, 3>& on, int i, int j, int k, double& cross_distance) const {
+
+    // Set our initial value for the distance and the index change
+    double box_dist = INF;
+    cross_distance = 0.;
+    int key = 0;
+
+    // Check all six sides
+    const double diff_xl = r_low_.x() + static_cast<double>(i) * pitch_x_ - r.x();
+    const double diff_xh = diff_xl + pitch_x_;
+    const double diff_yl = r_low_.y() + static_cast<double>(j) * pitch_y_ - r.y();
+    const double diff_yh = diff_yl + pitch_y_;
+    const double diff_zl = r_low_.z() + static_cast<double>(k) * dz_ - r.z();
+    const double diff_zh = diff_zl + dz_;
+
+    const double d_xl = diff_xl * ux_inv;
+    const double d_xh = diff_xh * ux_inv;
+    const double d_yl = diff_yl * uy_inv;
+    const double d_yh = diff_yh * uy_inv;
+    const double d_zl = diff_zl * uz_inv;
+    const double d_zh = diff_zh * uz_inv;
+
+    if (d_xl > 0. && d_xl < box_dist && on[0] != -1) {
+      box_dist = d_xl;
+      key = -1;
+    }
+
+    if (d_xh > 0. && d_xh < box_dist && on[0] != 1) {
+      box_dist = d_xh;
+      key = 1;
+    }
+
+    if (d_yl > 0. && d_yl < box_dist && on[1] != -1) {
+      box_dist = d_yl;
+      key = -2;
+    }
+
+    if (d_yh > 0. && d_yh < box_dist && on[1] != 1) {
+      box_dist = d_yh;
+      key = 2;
+    }
+
+    if (d_zl > 0. && d_zl < box_dist && on[2] != -1) {
+      box_dist = d_zl;
+      key = -3;
+    }
+
+    if (d_zh > 0. && d_zh < box_dist && on[2] != 1) {
+      box_dist = d_zh;
+      key = 3;
+    }
+
+    return {box_dist, key};
+  }
 
 double CylinderFilter::z_min(const StaticVector3& index) const {
   // note that "index" is not orientated according to class in general
