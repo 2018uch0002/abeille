@@ -138,13 +138,16 @@ class CylinderFilter : public PositionFilter {
   bool find_entry_point(Position& r, const Direction& u, const double& ux_inv,
                         const double& uy_inv, const double& uz_inv,
                         double& d_flight) const;
+  void update_indices(int key, int& i, int& j, int& k,
+                    std::array<int, 3>& on) const;
+
 
  public:
   std::pair<double, int> distance_to_next_index(
-      const Position& r, const Direction& u, const double& ux_inv,
-      const double& uy_inv, const double& uz_inv,
-      const double& sine_polar_angle, const std::array<int, 3>& on, int i,
-      int j, int k, double& cross_distance) const;
+        const Position& r, const Direction& u, const double& ux_inv,
+        const double& uy_inv, const double& uz_inv,
+        const double& sine_pol_sqr_inv, const std::array<int, 3>& on, int i,
+        int j, int k, double& cross_distance) const;
 };
 
 std::shared_ptr<CylinderFilter> make_cylinder_filter(const YAML::Node& node);
