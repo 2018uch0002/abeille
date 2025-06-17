@@ -45,8 +45,8 @@ LagrangeQuadElementFET::LagrangeQuadElementFET(
   index_z_ = 2;
 
   if (sd_ == SpacialDomain::XY) {
-    tally_shape.push_back(position_shape[0] + 1);
-    tally_shape.push_back(position_shape[1] + 1);
+    tally_shape.push_back(position_shape[0]);
+    tally_shape.push_back(position_shape[1]);
   } else {
     fatal_error("Only xy plane is supported.");
   }
@@ -63,6 +63,8 @@ LagrangeQuadElementFET::LagrangeQuadElementFET(
   if (poly_order_ != 1) {
     fatal_error("LagrangeQuadElementFET only spports linear shape function.");
   }
+
+  tally_shape.push_back(4); // for linear shape elements
 
   // reallocate and fill with zeros for the tally avg, gen-score and variance
   tally_avg_.resize(tally_shape);
@@ -103,33 +105,47 @@ void LagrangeQuadElementFET::score_collision(const Particle& p,
   const double Et = mat.Et(p.E());
   const double collision_score =
       particle_base_score(p.E(), p.wgt(), p.wgt2(), &mat) / Et;
+  
+  // get scaled-x or xi
+  const double xmin_ = cartesian_filter_->x_min(position_index);
+  const double inv_dx_ = cartesian_filter_->inv_dx(position_index);
+  const double xi = 2. * (trkr.r().x() -xmin_) * inv_dx_ - 1.;
 
-  // add the score at the xmin-ymin
+  // get scaled-y or eta
+  const double ymin_ = cartesian_filter_->y_min(position_index);
+  const double inv_dy_ = cartesian_filter_->inv_dy(position_index);
+  const double eta = 2. * (trkr.r().y() -ymin_) * inv_dy_ - 1.;
+
+  // add the index for shape-element
+  const std::size_t index_shape_ele = indices.size();
+  indices.push_back(0);
+
+  // add the score at the xmin-ymin: N1
 #ifdef ABEILLE_USE_OMP
 #pragma omp atomic
 #endif
-  tally_gen_score_.element(indices.begin(), indices.end()) += collision_score;
+  tally_gen_score_.element(indices.begin(), indices.end()) += collision_score * 0.25 * (1.-xi) * (1.-eta);
 
-  // add the score at the xmax-ymin
-  indices[loc_e_] += 1;
+  // add the score at the xmax-ymin: N2
+  indices[index_shape_ele] += 1;
 #ifdef ABEILLE_USE_OMP
 #pragma omp atomic
 #endif
-  tally_gen_score_.element(indices.begin(), indices.end()) += collision_score;
+  tally_gen_score_.element(indices.begin(), indices.end()) += collision_score * 0.25 * (1.+xi) * (1.-eta);
 
-  // add the score at the xmax-ymax
-  indices[loc_e_ + 1] += 1;
+  // add the score at the xmax-ymax: N3
+  indices[index_shape_ele] += 1;
 #ifdef ABEILLE_USE_OMP
 #pragma omp atomic
 #endif
-  tally_gen_score_.element(indices.begin(), indices.end()) += collision_score;
+  tally_gen_score_.element(indices.begin(), indices.end()) += collision_score * 0.25 * (1.+xi) * (1.+eta);
 
-  // add the score at the xmin-ymax
-  indices[loc_e_] -= 1;
+  // add the score at the xmin-ymax: N4
+  indices[index_shape_ele] += 1;
 #ifdef ABEILLE_USE_OMP
 #pragma omp atomic
 #endif
-  tally_gen_score_.element(indices.begin(), indices.end()) += collision_score;
+  tally_gen_score_.element(indices.begin(), indices.end()) += collision_score * 0.25 * (1.-xi) * (1.+eta);
 }
 
 std::string LagrangeQuadElementFET::spacial_domain() const {
