@@ -219,13 +219,13 @@ for iy in range(0, len(fine_mesh_y)):
 
 index_y = 0
 
+plt.plot(fine_mesh_x, linear_lagrange_reconstruct[:, index_y], label = "Lagrange-Linear quad4 50bins", marker = "o")
 plt.plot(fine_mesh_x, fine_mesh_tally_avg[:], label = "mesh-tally")
-plt.plot(fine_mesh_x, linear_lagrange_reconstruct[:, index_y], label = "Lagrange-Linear quad4 30bins")
 
 plt.xlabel("x [cm]")
 plt.ylabel("flux [Arb Unit]")
 plt.legend()
-plt.savefig("comparision_30bins.png", dpi = 300, bbox_inches = "tight")
+plt.savefig("comparision_50bins.png", dpi = 300, bbox_inches = "tight")
   
 
 

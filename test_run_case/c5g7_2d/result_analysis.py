@@ -263,6 +263,7 @@ for g in range(0, NE_group):
     plt.xlabel("r [cm]")
     plt.ylabel("Flux [Arb. Units]")
     plt.title("C5G7: group-{:} flux along the diagonal".format(g))
+    plt.legend()
     plt.savefig("plots/flux_along_diagonal_group_{:}.png".format(g), dpi = 300, bbox_inches = "tight")
       
   
