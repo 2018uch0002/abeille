@@ -561,15 +561,18 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
 
   const double new_origin_x = origin_.x() + static_cast<double>(i) * pitch_x_;
   const double new_origin_y = origin_.y() + static_cast<double>(j) * pitch_y_;
+  const double new_origin_z = origin_.z() + static_cast<double>(k) * dz_;
 
   // Check all six sides and get the possible crossing-distance in the box
-  // const double diff_xl = r_low_.x() + static_cast<double>(i) * pitch_x_ - r.x();
-  const double diff_xl = new_origin_x - 0.5 * pitch_x_;
+  // const double diff_xl = r_low_.x() + static_cast<double>(i) * pitch_x_ -
+  // r.x();
+  const double diff_xl = new_origin_x - 0.5 * pitch_x_ - r.x();
   const double diff_xh = diff_xl + pitch_x_;
-  // const double diff_yl = r_low_.y() + static_cast<double>(j) * pitch_y_ - r.y();
-  const double diff_yl = new_origin_y - 0.5 * pitch_y_; 
+  // const double diff_yl = r_low_.y() + static_cast<double>(j) * pitch_y_ -
+  // r.y();
+  const double diff_yl = new_origin_y - 0.5 * pitch_y_ - r.y();
   const double diff_yh = diff_yl + pitch_y_;
-  const double diff_zl = r_low_.z() + static_cast<double>(k) * dz_ - r.z();
+  const double diff_zl = new_origin_z - 0.5 * dz_ - r.z();
   const double diff_zh = diff_zl + dz_;
 
   const double d_xl = diff_xl * ux_inv;
@@ -640,17 +643,12 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
 
     cross_distance = chord_length_half - std::copysign(particle_dist_mid_chord,
                                                        xp * u.x() + yp * u.y());
-
-    std::cout << "----->>  we are here condition-1." << std::endl;
-
   } else if ((xp * u.x() + yp * u.y()) < 0.) {
     // particle is perhaps moving towards the cylinder radially
     // if the condition is satisifed that means, the particle will not be moving
     // radially outwards away from the cylinder. So, to check if particle
     // intersect the cylinder or not, can be done by comparing the radius and
     // normal-distance from center to particle's path.
-
-    std::cout << "----->>  we are here." << std::endl;
 
     const double numerator = std::abs(u.y() * xp - u.x() * yp);
     const double normal_distance_sqr = numerator * numerator * sine_pol_sqr_inv;
@@ -674,7 +672,12 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
 
       Position entery_position = r + dist_to_curve * u;
 
-      cross_distance = 2 * chord_length_half;
+      if (new_origin_z < entery_position.z() &&
+          entery_position.z() < (new_origin_z + dz_)) {
+        // this means particles moving towards the cylinder's curve surface will
+        // intersect the cylinder.
+        cross_distance = 2 * chord_length_half;    
+      }
     }
   }
 
@@ -702,7 +705,7 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
 }
 
 void CylinderFilter::update_indices(int key, int& i, int& j, int& k,
-                                                std::array<int, 3>& on) const {
+                                    std::array<int, 3>& on) const {
   // Must initially fill with zero, so that we don't stay on top
   // of other surfaces the entire time
   on.fill(0);
