@@ -166,13 +166,17 @@ fine_mesh_tally_avg /= fine_mesh_avg_volume
 # =============================================================================
 
 # function to get the scaled x and y or xi and eta
-def get_scaled_xi_eta(x: float, x_ele_bounds : (float, float), 
-                      y: float, y_ele_bounds : (float, float)):
-    
+def get_scaled_xi_eta(x: float, loc_ix : int, 
+                      y: float, loc_iy : int ):
+    x_ele_bounds = [x_bounds[loc_ix], x_bounds[loc_ix+1]]
+    y_ele_bounds = [y_bounds[loc_iy], y_bounds[loc_iy+1]]
+
     xi = 2. * (x - x_ele_bounds[0]) / (x_ele_bounds[1] - x_ele_bounds[0]) - 1
     eta = 2. * (y - y_ele_bounds[0]) / (y_ele_bounds[1] - y_ele_bounds[0]) - 1.
     
-    return xi, eta
+    area = (x_ele_bounds[1] - x_ele_bounds[0]) * (y_ele_bounds[1] - y_ele_bounds[0])
+
+    return xi, eta, area
 
 dx_lagrange_linear = x_bounds[1] - x_bounds[0]
 dy_lagrange_linear = y_bounds[1] - y_bounds[0]
@@ -225,10 +229,7 @@ for g in range(0, NE_group):
             
             loc_ix, loc_iy = get_element_location_in_lagrange_linear(point_x, point_y)
             
-            x_ele_bounds = [x_bounds[loc_ix], x_bounds[loc_ix+1]]
-            y_ele_bounds = [y_bounds[loc_iy], y_bounds[loc_iy+1]]
-            
-            xi, eta = get_scaled_xi_eta(point_x, x_ele_bounds, point_y, y_ele_bounds)
+            xi, eta, area = get_scaled_xi_eta(point_x, loc_ix, point_y, loc_iy)
             
             loc_ix, loc_iy = get_element_location_in_lagrange_linear(point_x, point_y)
             

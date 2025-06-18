@@ -36,7 +36,7 @@ tally-filters:
       type: regular-cartesian-mesh
       low: [-0.77032, -100., -100.]
       high:  [ 0.77032,  100.,  100.]
-      shape: [50, 1, 1]
+      shape: [5, 1, 1]
 
 tallies:
   - position-filter: 1

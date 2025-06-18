@@ -156,13 +156,17 @@ fine_mesh_avg_volume = dx_fine_mesh * dy_fine_mesh #* dz_fine_mesh
 fine_mesh_tally_avg /= fine_mesh_avg_volume
 
 # function to get the scaled x and y or xi and eta
-def get_scaled_xi_eta(x: float, x_ele_bounds : (float, float), 
-                      y: float, y_ele_bounds : (float, float)):
-    
+def get_scaled_xi_eta(x: float, loc_ix : int, 
+                      y: float, loc_iy : int ):
+    x_ele_bounds = [x_bounds[loc_ix], x_bounds[loc_ix+1]]
+    y_ele_bounds = [y_bounds[loc_iy], y_bounds[loc_iy+1]]
+
     xi = 2. * (x - x_ele_bounds[0]) / (x_ele_bounds[1] - x_ele_bounds[0]) - 1
     eta = 2. * (y - y_ele_bounds[0]) / (y_ele_bounds[1] - y_ele_bounds[0]) - 1.
     
-    return xi, eta
+    area = (x_ele_bounds[1] - x_ele_bounds[0]) * (y_ele_bounds[1] - y_ele_bounds[0])
+
+    return xi, eta, area
 
 dx_lagrange_linear = x_bounds[1] - x_bounds[0]
 dy_lagrange_linear = y_bounds[1] - y_bounds[0]
@@ -196,19 +200,14 @@ linear_lagrange_reconstruct = np.zeros([len(fine_mesh_x), len(fine_mesh_y)])
 
 for iy in range(0, len(fine_mesh_y)):
     point_y = fine_mesh_y[iy]
-    y_ele_bounds = [fine_mesh_y_bounds[iy], fine_mesh_y_bounds[iy+1]]
     
     for ix in range(0, len(fine_mesh_x)):
-        point_x = fine_mesh_x[ix]        
-        x_ele_bounds = [fine_mesh_x_bounds[ix], fine_mesh_x_bounds[ix+1]]
-        
-        xi, eta = get_scaled_xi_eta(point_x, x_ele_bounds, point_y, y_ele_bounds)
-        
+        point_x = fine_mesh_x[ix]       
+    
         loc_ix, loc_iy = get_element_location_in_lagrange_linear(point_x, point_y)
+        xi, eta, area = get_scaled_xi_eta(point_x, loc_ix, point_y, loc_iy)
         
-        area = (y_ele_bounds[1] - y_ele_bounds[0]) * (x_ele_bounds[1] - x_ele_bounds[0])
-        
-        linear_lagrange_reconstruct[ix, iy] = evaluate_tally(xi, eta, loc_ix, loc_iy) 
+        linear_lagrange_reconstruct[ix, iy] = evaluate_tally(xi, eta, loc_ix, loc_iy)
         
 
 
@@ -219,23 +218,21 @@ for iy in range(0, len(fine_mesh_y)):
 
 index_y = 0
 
-plt.plot(fine_mesh_x, linear_lagrange_reconstruct[:, index_y], label = "Lagrange-Linear quad4 50bins", marker = "o")
+plt.plot(fine_mesh_x, linear_lagrange_reconstruct[:, index_y], label = "Lagrange-Linear quad4 {:}bins".format(len(x_bounds)-1), marker = "o")
 plt.plot(fine_mesh_x, fine_mesh_tally_avg[:], label = "mesh-tally")
 
 plt.xlabel("x [cm]")
 plt.ylabel("flux [Arb Unit]")
 plt.legend()
-plt.savefig("comparision_50bins.png", dpi = 300, bbox_inches = "tight")
+# plt.savefig("temp.png".format(len(x_bounds)-1), dpi = 300, bbox_inches = "tight")
+plt.savefig("comparision_{:}bins.png".format(len(x_bounds)-1), dpi = 300, bbox_inches = "tight")
   
 
 
 
-
   
   
 
-
-  
 
 
 
