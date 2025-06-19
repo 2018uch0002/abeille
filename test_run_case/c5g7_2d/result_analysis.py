@@ -7,6 +7,7 @@ Created on Mon Jun  9 14:20:54 2025
 """
 
 import matplotlib.pyplot as plt
+from matplotlib.colors import TwoSlopeNorm
 import numpy as np
 import h5py
 
@@ -268,9 +269,34 @@ for g in range(0, NE_group):
     plt.savefig("plots/flux_along_diagonal_group_{:}.png".format(g), dpi = 300, bbox_inches = "tight")
       
   
+# =============================================================================
+# Plot the volume integral
+# =============================================================================
 
+# volume integral of N1, N2, N3, and N4 will be 1.
+linear_lagrange_vol_integral = 0.25 * np.sum(target_tally, axis= 3) 
+rel_error_linear_lagrange_vol_integral = 100. * (1 - np.divide(linear_lagrange_vol_integral, 
+                                                               fine_mesh_tally_avg, 
+                                                               out = np.zeros_like(linear_lagrange_vol_integral),
+                                                               where = fine_mesh_tally_avg != 0.))
 
-  
+g = 0
+plt.figure("relative-error-2D")
+norm = TwoSlopeNorm(vcenter= 0., 
+                    vmax = np.max(rel_error_linear_lagrange_vol_integral[: 17*3 *2, : 17*3 *2 ]),
+                    vmin = np.min(rel_error_linear_lagrange_vol_integral[: 17*3 *2, : 17*3 *2 ]))
+plt.pcolormesh(fine_mesh_x_bounds[: 17*3 *2 + 1], 
+               fine_mesh_y_bounds[: 17*3 *2 + 1], 
+               rel_error_linear_lagrange_vol_integral[g, : 17*3*2, : 17*3*2],
+               cmap = "bwr",
+               norm = norm)
+plt.colorbar()
+
+plt.xlabel("x [cm]")
+plt.ylabel("y [cm]")
+plt.title("C5G7 group-{:} Relative Error (%)in the Lagrange Linear".format(g))
+
+plt.savefig("plots/rel_error_lux_contour_group_{:}.png".format(g), dpi = 300, bbox_inches = "tight")
 
 
 
