@@ -310,22 +310,6 @@ std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
 
     if (d_flight < 0) return indices_tracklength;
 
-    // store the distance travelled in the last bin, if it is inside bin.
-    // >>>>>>> it may not be needed check first.
-    // const double rz_last = r.z() + d_flight * u.z();
-    // const int nz_final =
-    //     static_cast<int>(std::floor((rz_last - r_low_.z()) * inv_dz_));
-    // if (nz_final >= 0 && nz_final < static_cast<int>(Nz_)) {
-    //   zmin = r_low_.z() + static_cast<double>(nz_final) * dz_;
-    //   cross_dist = std::abs(rz_last - zmin - (k_increment == 1 ? 0 : dz_));
-    //   trlen_d.distance = std::min(d_flight, cross_dist);
-
-    //   uk = static_cast<std::size_t>(nz_final);
-    //   trlen_d.index = reduce_dimension(ui, uj, uk);
-    //   indices_tracklength.push_back(trlen_d);
-    //   d_flight -= cross_dist;
-    // }
-
     // add index and distance of remaining of the scoring bins
     // so, start from the index of scoring bin after first index
     while (d_flight > 0.) {
@@ -354,6 +338,7 @@ std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
   double cross_distance = 0.;
   // pre calculate the inverse of the sine of the polar angle
   const double sine_pol_sqr_inv = 1. / (u.x() * u.x() + u.y() * u.y());
+  double sum = 0;
   while (d_flight > 0.) {
     // get the distance travelled in the current index
     auto next_tile =
@@ -374,29 +359,31 @@ std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
     }
 
     double d_tile = std::min(next_tile.first, d_flight);
+    if (cross_distance != 0.){
+      // Make the score if we are in a valid cell and crosses the cylinder
+      if (i >= 0 && i < static_cast<int>(Nx_) && j >= 0 &&
+          j < static_cast<int>(Ny_) && k >= 0 && k < static_cast<int>(Nz_)) {
+        std::size_t ui = static_cast<std::size_t>(i);
+        std::size_t uj = static_cast<std::size_t>(j);
+        std::size_t uk = static_cast<std::size_t>(k);
 
-    // Make the score if we are in a valid cell
-    if (i >= 0 && i < static_cast<int>(Nx_) && j >= 0 &&
-        j < static_cast<int>(Ny_) && k >= 0 && k < static_cast<int>(Nz_)) {
-      std::size_t ui = static_cast<std::size_t>(i);
-      std::size_t uj = static_cast<std::size_t>(j);
-      std::size_t uk = static_cast<std::size_t>(k);
+        StaticVector3 u_index = reduce_dimension(ui, uj, uk);
+        trlen_d.index = u_index;
+        trlen_d.distance = cross_distance;
+        indices_tracklength.push_back(trlen_d);
 
-      StaticVector3 u_index = reduce_dimension(ui, uj, uk);
-      trlen_d.index = u_index;
-      trlen_d.distance = cross_distance;
-      indices_tracklength.push_back(trlen_d);
-
-    } else {
-      // If we arrive here, it means that we have left the tally region
-      // when were we initially inside it. We can return here, as it's
-      // impossible to go back in.
-      return indices_tracklength;
+      } else {
+        // If we arrive here, it means that we have left the tally region
+        // when were we initially inside it. We can return here, as it's
+        // impossible to go back in.
+        return indices_tracklength;
+      }
     }
 
     // Remove the traveled distance
     d_flight -= d_tile;
-
+    sum += d_tile;
+    std::cout << "\t" << sum << std::endl;
     if (d_flight <= 0.) break;
 
     // Update the position and cell indices
@@ -557,22 +544,17 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
   // Set our initial value for the distance and the index change
   double box_dist = INF;
   int key = 0;
-  cross_distance = 0.;  // for the segement inside the cylinder
 
   const double new_origin_x = origin_.x() + static_cast<double>(i) * pitch_x_;
   const double new_origin_y = origin_.y() + static_cast<double>(j) * pitch_y_;
   const double new_origin_z = origin_.z() + static_cast<double>(k) * dz_;
 
   // Check all six sides and get the possible crossing-distance in the box
-  // const double diff_xl = r_low_.x() + static_cast<double>(i) * pitch_x_ -
-  // r.x();
   const double diff_xl = new_origin_x - 0.5 * pitch_x_ - r.x();
   const double diff_xh = diff_xl + pitch_x_;
-  // const double diff_yl = r_low_.y() + static_cast<double>(j) * pitch_y_ -
-  // r.y();
   const double diff_yl = new_origin_y - 0.5 * pitch_y_ - r.y();
   const double diff_yh = diff_yl + pitch_y_;
-  const double diff_zl = new_origin_z - 0.5 * dz_ - r.z();
+  const double diff_zl = new_origin_z - r.z();
   const double diff_zh = diff_zl + dz_;
 
   const double d_xl = diff_xl * ux_inv;
@@ -612,16 +594,25 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
     key = 3;
   }
 
+  // std::cout << "d-xl = " << d_xl << std::endl;
+  // std::cout << "d-xh = " << d_xh << std::endl;
+  // std::cout << "d-yl = " << d_yl << std::endl;
+  // std::cout << "d-yh = " << d_yh << std::endl;
+  // std::cout << "d-zl = " << d_zl << std::endl;
+  // std::cout << "d-zh = " << d_zh << std::endl;
+  std::cout << "i = " << i << ", j = " << j << ", k = " << k << "\tbox-dist = " << box_dist;
+
   // now start the calculation to get the distance travelled inside the cylinder
   // check whether particle's position is inside the cylinder (radially) or
   // moving towards the cylinder (radially)
 
+  cross_distance = 0.;  // for the segement inside the cylinder
+
   const double xp = r.x() - new_origin_x;
   const double yp = r.y() - new_origin_y;
 
-  // square of the distance between point to center
+  // square of the distance from point to center
   const double paticle_dist_center_sqr = xp * xp + yp * yp;
-  bool start_inside = false;
   if ((paticle_dist_center_sqr < radius_ * radius_)) {
     // particle is inside the cylinder's radial plane, which means the crossed
     // distance through mathematicl formula (used in the next else if condition)
@@ -629,7 +620,6 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
     // So, first get the half-length of the chord, assuming particle will
     // intersect the cylinder entirely. After this, we shall add or substract
     // the remainign lenght.
-    start_inside = true;
     const double numerator = std::abs(u.y() * xp - u.x() * yp);
     const double normal_distance_sqr = numerator * numerator * sine_pol_sqr_inv;
 
@@ -638,15 +628,24 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
 
     // get the distacne between particle's position and mid of the chord,
     // and add/substract the distance
-    const double particle_dist_mid_chord =
-        std::sqrt(paticle_dist_center_sqr - normal_distance_sqr);
+    const double particle_dist_mid_chord = std::sqrt(
+        (paticle_dist_center_sqr - normal_distance_sqr) * sine_pol_sqr_inv);
 
     cross_distance = chord_length_half - std::copysign(particle_dist_mid_chord,
                                                        xp * u.x() + yp * u.y());
+
+    // but if particle is leaving from the zmin or zmax side
+    if (key == 3 || key == -3) {
+      // since the particle is alreay inside, therefore, the actual distance
+      // crossed through cylinder will be the minma of the distance recoved from
+      // the radial component and axial component.
+      cross_distance = std::min(cross_distance, box_dist);
+    }
+
   } else if ((xp * u.x() + yp * u.y()) < 0.) {
     // particle is perhaps moving towards the cylinder radially
     // if the condition is satisifed that means, the particle will not be moving
-    // radially outwards away from the cylinder. So, to check if particle
+    // radially away from the cylinder. So, to check if particle
     // intersect the cylinder or not, can be done by comparing the radius and
     // normal-distance from center to particle's path.
 
@@ -667,41 +666,166 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
 
       // get the entry point
       const double dist_to_curve =
-          std::sqrt(paticle_dist_center_sqr - normal_distance_sqr) -
+          std::sqrt((paticle_dist_center_sqr - normal_distance_sqr) *
+                    sine_pol_sqr_inv) -
           chord_length_half;
+      std::cout << "\t dist-to-curve = " << dist_to_curve;
 
-      Position entery_position = r + dist_to_curve * u;
-
-      if (new_origin_z < entery_position.z() &&
-          entery_position.z() < (new_origin_z + dz_)) {
+      const double entery_position_z = r.z() + dist_to_curve * u.z();
+      if (new_origin_z < entery_position_z &&
+          entery_position_z < (new_origin_z + dz_)) {
         // this means particles moving towards the cylinder's curve surface will
         // intersect the cylinder.
-        cross_distance = 2 * chord_length_half;    
+        cross_distance = 2 * chord_length_half;
+
+        // particle can exit from the zmin and zmax, if that so then particle
+        // can exit either after crossing the cylinder complete radially within
+        // the box, or from circular region at zmin or zmax plane.
+        if (key == 3 || key == -3) {
+          const double diff_z_cylinder =
+              (new_origin_z - entery_position_z + (u.z() > 0. ? dz_ : 0.)) *
+              uz_inv;
+
+          cross_distance = std::min(cross_distance, diff_z_cylinder);
+        }
       }
     }
   }
 
-  // it is possible that particle is entring from the curve surface or inside
-  // the cylinder and leaving the cylinder from the either side the radial
-  // plane. In such cases, none of the above methods will work as the above
-  // methods assume that the particle either will go through the cylinder
-  // entirly (in radial direction) even it starts from the inside. So, such
-  // possibility can only apppear if the leaving side is zmin or zmax.
-  // if (key == 3 || key == -3) {
-  //   // first get the leaving position
-  //   Position r_leave = r + box_dist * u;
-  //   // check if the leaving point is inside the radius
-  //   if (((r_leave.x() - new_origin_x) * (r_leave.x() - new_origin_x) +
-  //        (r_leave.y() - new_origin_y) * (r_leave.y() - new_origin_y)) <
-  //       radius_ * radius_) {
-  //     if (start_inside == true)
-  //       cross_distance = box_dist;
-  //     else {
-  //     }
-  //   }
-  // }
-
+  std::cout << "\t" << cross_distance ;
+  // return the distance travelled inside the box and key to surface-tile
   return {box_dist, key};
+}
+
+std::optional<TracklengthDistance> CylinderFilter::distance_at_last_index(
+    const Position& end_point, double& d_flight, Direction u, double ux_inv,
+    double uy_inv, double uz_inv, const double& sine_pol_sqr_inv) const {
+  // check if the end point is inside the tally-region.
+  const int nx = static_cast<int>((end_point.x() - r_low_.x()) * inv_pitch_x_);
+  const int ny = static_cast<int>((end_point.y() - r_low_.y()) * inv_pitch_y_);
+  const int nz = infinite_length_
+                     ? 0
+                     : static_cast<int>(
+                           std::floor((end_point.z() - r_low_.z()) * inv_dz_));
+  if ((0 <= nx && nx < static_cast<int>(Nx_)) &&
+      (0 <= ny && ny < static_cast<int>(Ny_)) &&
+      ((nz >= 0 && nz < static_cast<int>(Nz_)) || infinite_length_)) {
+    // first the get the distance that particle travelled inside the box
+    // note that, the position here is the end-point, so tracing of the
+    // distance needs perfom opposite to the travelled direction.
+    const double new_origin_x =
+        origin_.x() + static_cast<double>(nx) * pitch_x_;
+    const double new_origin_y =
+        origin_.y() + static_cast<double>(ny) * pitch_y_;
+    const double new_origin_z = origin_.z() + static_cast<double>(nz) * dz_;
+
+    const double dist_box_x =
+        -(new_origin_x - end_point.x() - std::copysign(0.5 * pitch_x_, u.x())) *
+        ux_inv;
+    const double dist_box_y =
+        -(new_origin_y - end_point.y() - std::copysign(0.5 * pitch_y_, u.y())) *
+        uy_inv;
+    double box_dist = std::min(dist_box_x, dist_box_y);
+    const double dist_box_z =
+        -(new_origin_z - end_point.z() + (u.z() < 0. ? dz_ : 0.)) * uz_inv;
+    if (box_dist > dist_box_z) box_dist = dist_box_z;
+
+    // std::cout << "x- box-dist = " << dist_box_x << std::endl;
+    // std::cout << "y- box-dist = " << dist_box_y << std::endl;
+    // std::cout << "z- box-dist = " << dist_box_z << std::endl;
+    // std::cout << "last-index box-dist = " << box_dist << std::endl;
+
+    // get the possible position from where the particle will enter
+    Position r = end_point - std::min(d_flight, box_dist) * u;
+
+    // now start the calculation to get the distance travelled inside the
+    // cylinder check whether particle's position is inside the cylinder
+    // (radially) or moving towards the cylinder (radially)
+    double cross_distance = 0.;  // for the segement inside the cylinder
+
+    const double xp = r.x() - new_origin_x;
+    const double yp = r.y() - new_origin_y;
+
+    // square of the distance from entery-point to center
+    const double paticle_dist_center_sqr = xp * xp + yp * yp;
+    if ((paticle_dist_center_sqr < radius_ * radius_)) {
+      // particle is inside the cylinder's radial plane, which means the crossed
+      // distance through mathematicl formula (used in the next else if
+      // condition) will be truncated. So, first get the half-length of the
+      // chord, assuming particle will intersect the cylinder entirely. After
+      // this, we shall add or substract the remainign lenght.
+      const double numerator = std::abs(u.y() * xp - u.x() * yp);
+      const double normal_distance_sqr =
+          numerator * numerator * sine_pol_sqr_inv;
+
+      const double chord_length_half = std::sqrt(
+          (radius_ * radius_ - normal_distance_sqr) * sine_pol_sqr_inv);
+
+      // get the distacne between particle's position and mid of the chord, and
+      // add/substract the distance; assuming particle will leave the cylinder
+      const double particle_dist_mid_chord = std::sqrt(
+          (paticle_dist_center_sqr - normal_distance_sqr) * sine_pol_sqr_inv);
+
+      cross_distance =
+          chord_length_half -
+          std::copysign(particle_dist_mid_chord, xp * u.x() + yp * u.y());
+
+      // it is possible that last index may be the first index
+      box_dist = std::min(box_dist, d_flight);
+      cross_distance = std::min(cross_distance, box_dist);
+      d_flight -= box_dist;  // substract the travelled distance within that box
+
+    } else if ((xp * u.x() + yp * u.y()) < 0.) {
+      // particle is perhaps moving towards the cylinder radially.
+      // if the condition is satisifed that means, the particle will not be
+      // moving radially away from the cylinder. So, to check if
+      // particle intersect the cylinder or not, can be done by comparing the
+      // radius and normal-distance from center to particle's path.
+
+      const double numerator = std::abs(u.y() * xp - u.x() * yp);
+      const double normal_distance_sqr =
+          numerator * numerator * sine_pol_sqr_inv;
+      if (normal_distance_sqr < radius_ * radius_) {
+        // since the normal-distane is less than the radius, therefore,
+        // particle's path will intersect the cylinder at the current index. get
+        // the distance inside the cylinder crossed by the particle
+        const double chord_length_half = std::sqrt(
+            (radius_ * radius_ - normal_distance_sqr) * sine_pol_sqr_inv);
+
+        // it is importat to understnad that as of now segement of the distance
+        // are calculated based on radial parameters. Though, the cylinder's
+        // length axial is finite (within the index), therefore, it is important
+        // to check whether particle is even entring or not. It is because,
+        // particle can enter the cylinder beyond the zmin and zmax.
+
+        // get the entry point
+        const double dist_to_curve =
+            std::sqrt((paticle_dist_center_sqr - normal_distance_sqr) *
+                      sine_pol_sqr_inv) -
+            chord_length_half;
+           
+        // it is possible that last index may be the first index
+        box_dist = std::min(box_dist, d_flight);
+
+        // if particle is moving towards the cylinder, it is possible that
+        // particle may not be able to make it.
+        if (box_dist > dist_to_curve) return std::nullopt;
+
+        // get the point on the curve, from where the particle will entry
+        const Position entery_position = r + dist_to_curve * u;
+
+        cross_distance =
+            std::min(2. * chord_length_half, box_dist - dist_to_curve);
+      }
+    }
+
+  } else {
+    // end-point is not inside the tally region, return nullopt
+    return std::nullopt;
+  }
+
+  // it shouldn't come here.
+  return std::nullopt;
 }
 
 void CylinderFilter::update_indices(int key, int& i, int& j, int& k,
