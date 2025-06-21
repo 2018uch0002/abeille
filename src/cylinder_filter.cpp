@@ -298,7 +298,9 @@ std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
     std::size_t ui = static_cast<std::size_t>(i);
     std::size_t uj = static_cast<std::size_t>(j);
     std::size_t uk = static_cast<std::size_t>(k);
-    trlen_d.index = reduce_dimension(ui, uj, uk);
+    StaticVector3 u_index = {ui, uj, uk};
+    map_indexes(u_index);
+    trlen_d.index = reduce_dimension(u_index[0], u_index[1], u_index[2]);
 
     double zmin = r_low_.z() + static_cast<double>(k) * dz_;
     double cross_dist = std::abs(r.z() - zmin - (k_increment == -1 ? 0. : dz_));
@@ -319,7 +321,9 @@ std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
         trlen_d.distance = std::min(d_flight, dz_);
 
         uk = static_cast<std::size_t>(k);
-        trlen_d.index = reduce_dimension(ui, uj, uk);
+        u_index = {ui, uj, uk};
+        map_indexes(u_index);
+        trlen_d.index = reduce_dimension(u_index[0], u_index[1], u_index[2]);
 
         indices_tracklength.push_back(trlen_d);
 
@@ -339,6 +343,13 @@ std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
   // pre calculate the inverse of the sine of the polar angle
   const double sine_pol_sqr_inv = 1. / (u.x() * u.x() + u.y() * u.y());
   double sum = 0;
+
+  auto last_index_trlen = distance_at_last_index(
+      r + d_flight * u, d_flight, u, ux_inv, uy_inv, uz_inv, sine_pol_sqr_inv);
+  if (last_index_trlen.has_value()) {
+    std::cout << "we came here? " << std::endl;
+    indices_tracklength.push_back(last_index_trlen.value());
+  }
   while (d_flight > 0.) {
     // get the distance travelled in the current index
     auto next_tile =
@@ -359,7 +370,7 @@ std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
     }
 
     double d_tile = std::min(next_tile.first, d_flight);
-    if (cross_distance != 0.){
+    if (cross_distance != 0.) {
       // Make the score if we are in a valid cell and crosses the cylinder
       if (i >= 0 && i < static_cast<int>(Nx_) && j >= 0 &&
           j < static_cast<int>(Ny_) && k >= 0 && k < static_cast<int>(Nz_)) {
@@ -367,9 +378,10 @@ std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
         std::size_t uj = static_cast<std::size_t>(j);
         std::size_t uk = static_cast<std::size_t>(k);
 
-        StaticVector3 u_index = reduce_dimension(ui, uj, uk);
-        trlen_d.index = u_index;
-        trlen_d.distance = cross_distance;
+        StaticVector3 u_index = {ui, uj, uk};
+        map_indexes(u_index);
+        trlen_d.index = reduce_dimension(u_index[0], u_index[1], u_index[2]);
+        trlen_d.distance = std::min(cross_distance, d_flight);
         indices_tracklength.push_back(trlen_d);
 
       } else {
@@ -383,7 +395,7 @@ std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
     // Remove the traveled distance
     d_flight -= d_tile;
     sum += d_tile;
-    std::cout << "\t" << sum << std::endl;
+    std::cout << "\t" << sum << "\t d_flight = " << d_flight << std::endl;
     if (d_flight <= 0.) break;
 
     // Update the position and cell indices
@@ -600,7 +612,8 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
   // std::cout << "d-yh = " << d_yh << std::endl;
   // std::cout << "d-zl = " << d_zl << std::endl;
   // std::cout << "d-zh = " << d_zh << std::endl;
-  std::cout << "i = " << i << ", j = " << j << ", k = " << k << "\tbox-dist = " << box_dist;
+  std::cout << "i = " << i << ", j = " << j << ", k = " << k
+            << "\tbox-dist = " << box_dist;
 
   // now start the calculation to get the distance travelled inside the cylinder
   // check whether particle's position is inside the cylinder (radially) or
@@ -662,7 +675,9 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
       // are calculated based on radial parameters. Though, the cylinder's
       // length axial is finite (within the index), therefore, it is important
       // to check whether particle is even entring or not. It is because,
-      // particle can enter the cylinder beyond the zmin and zmax.
+      // particle can enter the cylinder beyond the zmin and zmax. Also,
+      // particle may not be able to make the curve of the cylinder (at last
+      // index).
 
       // get the entry point
       const double dist_to_curve =
@@ -670,6 +685,18 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
                     sine_pol_sqr_inv) -
           chord_length_half;
       std::cout << "\t dist-to-curve = " << dist_to_curve;
+
+      // if (box_dist > dist_to_curve) {
+      //   // this means particles moving towards the cylinder's curve surface
+      //   will
+      //   // intersect the cylinder. Particle can exit either after crossing
+      //   the
+      //   // cylinder complete radially within the box, or from circular region
+      //   at
+      //   // zmin or zmax plane.
+      //   cross_distance =
+      //       std::min(2. * chord_length_half, box_dist - dist_to_curve);
+      // }
 
       const double entery_position_z = r.z() + dist_to_curve * u.z();
       if (new_origin_z < entery_position_z &&
@@ -692,7 +719,7 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
     }
   }
 
-  std::cout << "\t" << cross_distance ;
+  std::cout << "\t" << cross_distance;
   // return the distance travelled inside the box and key to surface-tile
   return {box_dist, key};
 }
@@ -742,6 +769,7 @@ std::optional<TracklengthDistance> CylinderFilter::distance_at_last_index(
     // cylinder check whether particle's position is inside the cylinder
     // (radially) or moving towards the cylinder (radially)
     double cross_distance = 0.;  // for the segement inside the cylinder
+    TracklengthDistance trlen;
 
     const double xp = r.x() - new_origin_x;
     const double yp = r.y() - new_origin_y;
@@ -775,6 +803,20 @@ std::optional<TracklengthDistance> CylinderFilter::distance_at_last_index(
       cross_distance = std::min(cross_distance, box_dist);
       d_flight -= box_dist;  // substract the travelled distance within that box
 
+      trlen.distance = cross_distance;
+      std::size_t ui = static_cast<std::size_t>(nx);
+      std::size_t uj = static_cast<std::size_t>(ny);
+      std::size_t uk = static_cast<std::size_t>(nz);
+
+      StaticVector3 u_index = {ui, uj, uk};
+      map_indexes(u_index);
+      trlen.index = reduce_dimension(u_index[0], u_index[1], u_index[2]);
+      trlen.distance = cross_distance;
+      std::cout << "inside distance = cross_distance " << cross_distance
+                << "\td_flight = " << d_flight << std::endl;
+
+      return std::optional<TracklengthDistance>(trlen);
+
     } else if ((xp * u.x() + yp * u.y()) < 0.) {
       // particle is perhaps moving towards the cylinder radially.
       // if the condition is satisifed that means, the particle will not be
@@ -803,19 +845,34 @@ std::optional<TracklengthDistance> CylinderFilter::distance_at_last_index(
             std::sqrt((paticle_dist_center_sqr - normal_distance_sqr) *
                       sine_pol_sqr_inv) -
             chord_length_half;
-           
+        std::cout << "dist-to-curve " << dist_to_curve << std::endl;
         // it is possible that last index may be the first index
         box_dist = std::min(box_dist, d_flight);
+        d_flight -= box_dist;
 
         // if particle is moving towards the cylinder, it is possible that
         // particle may not be able to make it.
-        if (box_dist > dist_to_curve) return std::nullopt;
+        if (dist_to_curve > box_dist) {
+          std::cout << "returning " << std::endl;
+          return std::nullopt;
+        }
 
         // get the point on the curve, from where the particle will entry
         const Position entery_position = r + dist_to_curve * u;
 
         cross_distance =
             std::min(2. * chord_length_half, box_dist - dist_to_curve);
+
+        trlen.distance = cross_distance;
+        std::size_t ui = static_cast<std::size_t>(nx);
+        std::size_t uj = static_cast<std::size_t>(ny);
+        std::size_t uk = static_cast<std::size_t>(nz);
+        StaticVector3 u_index = {ui, uj, uk};
+        map_indexes(u_index);
+        trlen.index = reduce_dimension(u_index[0], u_index[1], u_index[2]);
+        trlen.distance = cross_distance;
+        std::cout << " >>>> " << trlen.distance << std::endl;
+        return std::optional<TracklengthDistance>(trlen);
       }
     }
 
