@@ -5,13 +5,13 @@
 
 void test() {
   std::cout << "We are inside of the test function. \n\n" << std::endl;
-  Position origin(-10.0784, -10.0784, -100.);
-  const double radius = 0.4750;
-  const double pitch = 1.2598;
-  const double dz = 20.;
+  Position origin(-10.08, -10.08, -10.17);
+  const double radius = 0.54;
+  const double pitch = 1.26;
+  const double dz = 21.42;
 
-  CylinderFilter cy_filter(origin, radius, pitch, pitch, dz, 17, 17, 10,
-                           CylinderFilter::Orientation::Z, 0);
+  CylinderFilter cy_filter(origin, radius, pitch, pitch, dz, 17, 17, 1,
+                           CylinderFilter::Orientation::Z, 1);
 
   // // u.z() = 0 case:
   // Position r(-6.035892499999999, 0.002, -154.055);
@@ -25,16 +25,22 @@ void test() {
   // }
   
 
-  double d_flight =15.; 
+/* 
+  WARNING: Found the nan value: d_flight= 0.330655        
+  distance = nan index = (14, 5) with direction: <<-0.0469335,-0.497676,0.866092>> and 
+  position = (7.50187,-3.77452,1.51377)
+*/
+
+  double d_flight = 15.; 
   // Position r(-0.13232, 0.456197783422936, -32.);
   // Direction u(0.43232,  -0.255, 0.8649129537704936);
 
-  Position r(-0.13232, 0.456197783422936, -32.);
-  Direction u(0.0343232,  0.500746942418783, 0.8649129537704936);
+  d_flight = 0.330655;
+  Position r(7.50187,-3.77452,1.51377);
+  Direction u(-0.0469335,-0.497676,0.866092);
   
   // r = r - 10 * u;
   Tracker trkr(r, u, true);
-  std::array<int, 3> on = {0, 0, 0};
   auto index_distance = cy_filter.get_indices_tracklength(trkr, d_flight);
   std::cout << "length of the vector = " << index_distance.size() << std::endl;
   for (auto& p : index_distance) {

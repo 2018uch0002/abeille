@@ -158,9 +158,13 @@ void GeneralTally::score_flight(const Particle& p, const Tracker& trkr,
     const double track_score = d*flight_score;
     if (std::isnan(track_score)){
       std::stringstream mssg;
-      mssg << "Found the nan value: d_flight= " << d_flight << "\t distance = " << d;
-      mssg << "\tindex = (" << all_indices[0] << ", " << all_indices[1] << ") with direction: ";
-      mssg << trkr.u() << " and position = " << trkr.r() << "\n";
+      for (auto& p : position_indices){
+        mssg << "Found the nan value: d_flight= " << d_flight << "\t distance = " << d;
+        mssg << "\tindex = (" << all_indices[0] << ", " << all_indices[1] << " [index-Shape";
+        mssg <<  position_indices[iter].index.size() << "]" << ") with direction: ";
+        mssg << trkr.u() << " and position = " << trkr.r() << "\n\n";
+      }
+      mssg << "--------------------------- ";
       warning(mssg.str()); 
     }
 
