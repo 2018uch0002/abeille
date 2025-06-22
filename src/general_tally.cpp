@@ -155,11 +155,19 @@ void GeneralTally::score_flight(const Particle& p, const Tracker& trkr,
 
     const double d = position_indices[iter].distance;
 
+    const double track_score = d*flight_score;
+    if (std::isnan(track_score)){
+      std::stringstream mssg;
+      mssg << "Found the nan value: d_flight= " << d_flight << "\t distance = " << d;
+      mssg << "\tindex = (" << all_indices[0] << ", " << all_indices[1] << ") with direction: ";
+      mssg << trkr.u() << " and position = " << trkr.r() << "\n";
+      warning(mssg.str()); 
+    }
+
 #ifdef ABEILLE_USE_OMP
 #pragma omp atomic
 #endif
-    tally_gen_score_.element(all_indices.begin(), all_indices.end()) +=
-        d * flight_score;
+    tally_gen_score_.element(all_indices.begin(), all_indices.end()) += track_score;
   }
 }
 
