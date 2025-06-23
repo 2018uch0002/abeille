@@ -641,8 +641,8 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
 
     // get the distacne between particle's position and mid of the chord,
     // and add/substract the distance
-    const double particle_dist_mid_chord = std::sqrt(
-        (paticle_dist_center_sqr - normal_distance_sqr) * sine_pol_sqr_inv);
+    const double chord_diff_mid = (paticle_dist_center_sqr - normal_distance_sqr);
+    const double particle_dist_mid_chord = (chord_diff_mid > 0) ? std::sqrt(chord_diff_mid * sine_pol_sqr_inv) : 0.;
 
     cross_distance = chord_length_half - std::copysign(particle_dist_mid_chord,
                                                        xp * u.x() + yp * u.y());
@@ -656,6 +656,21 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
     // }
 
     cross_distance = std::min(cross_distance, box_dist);
+    if (std::isnan(cross_distance)){
+        std::stringstream mssg;
+        mssg << ">>>>>> i= " << i << ", j= " << j << ", k= " << k;
+        mssg << ", box_dist = " << box_dist << "\tcross-distance = " << cross_distance;
+        mssg << "\t u = " << u;
+        mssg << "\t chord-lenght-half= " << chord_length_half;
+        mssg << "\t normal_distance_sqr" << normal_distance_sqr;
+        mssg << "\t paticle_dist_center_sqr = " << paticle_dist_center_sqr;
+        mssg << "\t particle_dist_mid_chord = " << particle_dist_mid_chord;
+        mssg << "\t p-mid-dist-chord= " << std::copysign(particle_dist_mid_chord, xp * u.x() + yp * u.y());
+        mssg << "\t sqr-inv= " << sine_pol_sqr_inv;
+        mssg << "\n";
+     warning(mssg.str());
+    }
+
 
   } else if ((xp * u.x() + yp * u.y()) < 0.) {
     // particle is perhaps moving towards the cylinder radially
