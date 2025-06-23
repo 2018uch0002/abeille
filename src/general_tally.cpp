@@ -168,6 +168,21 @@ void GeneralTally::score_flight(const Particle& p, const Tracker& trkr,
       warning(mssg.str()); 
     }
 
+    if(std::abs(1. - d / d_flight) > SURFACE_COINCIDENT)  {
+      std::stringstream mssg;
+      mssg << std::setprecision(15);
+      mssg << "tally: " << tally_name_ << "\t distance = " << d << "\td_flight = " << d_flight;
+      mssg << "\tindex = " << position_indices[iter].index[0] << ", " << position_indices[iter].index[1];
+      mssg << "\tindex-size = " << position_indices[iter].index.size();  
+      mssg << "\tr = " << trkr.r() << "\t u = " << trkr.u() << std::endl;
+      StaticVector3 pos_index = position_filter_->get_indices(trkr);
+      for (auto& pp : pos_index){
+          mssg << pp << "\t";
+      }
+      mssg << std::endl;
+      fatal_error(mssg.str());
+    }
+
 #ifdef ABEILLE_USE_OMP
 #pragma omp atomic
 #endif

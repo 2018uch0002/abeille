@@ -6,6 +6,7 @@
 #include <cmath>
 #include <sstream>
 #include <vector>
+#include <iomanip>
 
 CylinderFilter::CylinderFilter(Position origin, double radius, double dx,
                                double dy, double dz, std::size_t nx,
@@ -703,7 +704,7 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
           chord_length_half;
       // std::cout << "\t dist-to-curve = " << dist_to_curve;
 
-      if (box_dist > dist_to_curve) {
+      if (std::abs(box_dist - dist_to_curve) > SURFACE_COINCIDENT) {
         // this means particles moving towards the cylinder's curve surface
         // will
         // intersect the cylinder. Particle can exit either after crossing
@@ -713,7 +714,15 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
         // zmin or zmax plane.
         cross_distance =
             std::min(2. * chord_length_half, box_dist - dist_to_curve);
+        std::cout << std::setprecision(15) << "--- CONCERNING " << std::endl;
+        std::cout << "box-dist = " << box_dist;
+        std::cout << "\tdist_to_curve = " << dist_to_curve;
+        std::cout << "\t 2*chord_length_half = " << 2. * chord_length_half;
+        std::cout << std::endl;
+        
+
       }
+      
 
       // const double entery_position_z = r.z() + dist_to_curve * u.z();
       // if (new_origin_z < entery_position_z &&

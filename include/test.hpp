@@ -5,13 +5,12 @@
 
 void test() {
   std::cout << "We are inside of the test function. \n\n" << std::endl;
-  Position origin(-10.08, -10.08, -10.17);
-  const double radius = 0.54;
-  const double pitch = 1.26;
-  const double dz = 21.42;
-
-  CylinderFilter cy_filter(origin, radius, pitch, pitch, dz, 17, 17, 1,
-                           CylinderFilter::Orientation::Z, 1);
+  // Position origin(-10.08, -10.08, -10.17);
+  // const double radius = 0.54;
+  // const double pitch = 1.26;
+  // const double dz = 21.42;
+  // CylinderFilter cy_filter(origin, radius, pitch, pitch, dz, 17, 17, 1,
+  //                          CylinderFilter::Orientation::Z, 1);
 
   // // u.z() = 0 case:
   // Position r(-6.035892499999999, 0.002, -154.055);
@@ -35,9 +34,19 @@ void test() {
   // Position r(-0.13232, 0.456197783422936, -32.);
   // Direction u(0.43232,  -0.255, 0.8649129537704936);
 
-  d_flight = 0.329948 ;
-  Position r(-5.38565,9.07178,3.11346);
-  Direction u(-0.588434,-0.807816,-0.0343345);
+  /* 
+FATAL ERROR: tally: track-length-flux   distance = 0.406979    d_flight = 0.492277     index = 0, 0    index-size = 1 r = (-0.63,-0.571753,-5.04882)    u = <<0.200084,0.967621,-0.153872>>
+*/
+  Position origin(0., 0., -10.17);
+  const double radius = 0.54;
+  const double pitch = 1.26;
+  const double dz = 21.42;
+  CylinderFilter cy_filter(origin, radius, pitch, pitch, dz, 1, 1, 1,
+                           CylinderFilter::Orientation::Z, 1);
+
+  d_flight =  0.492276960708498 ;
+  Position r(-0.63,-0.571753337321809,-5.04881716812966);
+  Direction u(0.200083828160084,0.967620775753366,-0.153871686931871);
   
   // r = r - 10 * u;
   Tracker trkr(r, u, true);
@@ -48,10 +57,11 @@ void test() {
               << p.index[2] << "\tdistance = " << p.distance << std::endl;
   }
 
-  // double cross_distance = 0.;
-  // const double sine_pol_sqr_inv = 1. / (u.x()*u.x() + u.y()*u.y());// 1./0.25192558239999996;
-  // auto dis_key = cy_filter.distance_to_next_index(r, u, 1./u.x(), 1./u.y(), 1./u.z(), sine_pol_sqr_inv, on, 8, 8, 0, cross_distance);
-  // std::cout << cross_distance << " << cross-distance" << std::endl;
+  double cross_distance = 0.;
+  const double sine_pol_sqr_inv = 1. / (u.x()*u.x() + u.y()*u.y());// 1./0.25192558239999996;
+  std::array<int, 3> on = {-1, 0, 0};
+  auto dis_key = cy_filter.distance_to_next_index(r, u, 1./u.x(), 1./u.y(), 1./u.z(), sine_pol_sqr_inv, on, 8, 8, 0, cross_distance);
+  std::cout << cross_distance << " << cross-distance" << std::endl;
 
   // Position r1(-0.13232, 0.456197783422936, -32.);
   // Direction u1 = Direction(-u.x(), -u.y(), -u.z());
