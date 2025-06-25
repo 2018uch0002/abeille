@@ -1,9 +1,6 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Mon Jun  9 14:20:54 2025
-
-@author: singhp10
+This post-process script to solve the mass-matrix constructed from the 
+elemental matrix to reconstruct the flux
 """
 
 import matplotlib.pyplot as plt
@@ -23,10 +20,14 @@ position_filter = file["tally-filters"]["position-filters"][str(position_filter_
 x_bounds = np.array(position_filter["x-bounds"])
 y_bounds = np.array(position_filter["y-bounds"])
 
-energy_filter_id = lagrange_tally.attrs["energy-filter"]
-energy_filter = file["tally-filters"]["energy-filters"][str(energy_filter_id)]
-energy_bounds = energy_filter["energy-bounds"]
-NE_group = np.shape(energy_bounds)[0]-1
+NE_group = 1
+is_energy_filter = False
+if ("energy-filter" in lagrange_tally.attrs.keys()):
+    is_energy_filter = True
+    energy_filter_id = lagrange_tally.attrs["energy-filter"]
+    energy_filter = file["tally-filters"]["energy-filters"][str(energy_filter_id)]
+    energy_bounds = np.array(energy_filter["energy-bounds"])
+    NE_group = np.shape(energy_bounds)[0]-1
 
 tally_avg = np.array(lagrange_tally["avg"])
 
@@ -35,25 +36,56 @@ tally_avg = np.array(lagrange_tally["avg"])
 Nx = np.shape(x_bounds)[0] - 1
 Ny = np.shape(y_bounds)[0] - 1
 
+tally_avg_shape = np.array([NE_group, Nx, Ny, 4])
+
 N_nodes = (Nx+1)*(Ny+1)
 source_tally = np.zeros([NE_group, N_nodes])
           
 for g in range(0, NE_group):
+    for ix in range(0, Nx+1):
+        for iy in range(0, Ny+1):
+            i_node = ix + iy * (Nx+1)
+            if (is_energy_filter == True):
+                source_tally[g, i_node] = tally_avg[g, ix, iy]
+            else: 
+                source_tally[g, i_node] = tally_avg[ix, iy]
+
+
+
+"""# the below method shall be helpful, if in the monte carlo simulation
+# tally is being evaluated for the nodes in a element, but tally is 
+# not beind done on shared nodes unlike above method. Here, each 
+# element's nodes will kept isolated while tallying, and then summed
+# in the post process.  
+for g in range(0, NE_group):
     for ix in range(0, Nx):
         for iy in range(0, Ny):
-            i_node = ix + iy * (Nx+1)
-            source_tally[g, i_node] += tally_avg[g, ix, iy, 0] # N1
-            
-            i_node = (ix+1) + iy * (Nx+1)
-            source_tally[g, i_node] += tally_avg[g, ix, iy, 1] # N2
-            
-            i_node = (ix+1) + (iy+1) * (Nx+1)
-            source_tally[g, i_node] += tally_avg[g, ix, iy, 2] # N3
+            if (is_energy_filter == True):
+                i_node = ix + iy * (Nx+1)
+                source_tally[g, i_node] += tally_avg[g, ix, iy, 0] # N1
+                
+                i_node = (ix+1) + iy * (Nx+1)
+                source_tally[g, i_node] += tally_avg[g, ix, iy, 1] # N2
+                
+                i_node = (ix+1) + (iy+1) * (Nx+1)
+                source_tally[g, i_node] += tally_avg[g, ix, iy, 2] # N3
     
-            i_node = ix + (iy+1) * (Nx+1)
-            source_tally[g, i_node] += tally_avg[g, ix, iy, 3] # N4
-            
-            
+                i_node = ix + (iy+1) * (Nx+1)
+                source_tally[g, i_node] += tally_avg[g, ix, iy, 3] # N4
+            else:
+                i_node = ix + iy * (Nx+1)
+                source_tally[g, i_node] += tally_avg[ix, iy, 0] # N1
+                
+                i_node = (ix+1) + iy * (Nx+1)
+                source_tally[g, i_node] += tally_avg[ix, iy, 1] # N2
+                
+                i_node = (ix+1) + (iy+1) * (Nx+1)
+                source_tally[g, i_node] += tally_avg[ix, iy, 2] # N3
+    
+                i_node = ix + (iy+1) * (Nx+1)
+                source_tally[g, i_node] += tally_avg[ix, iy, 3] # N4
+"""
+
 # =============================================================================
 # construction of global mass-matrix
 # =============================================================================
@@ -110,7 +142,7 @@ inv_global_mass_matrix = np.linalg.inv(global_mass_matrix)
 # Get the solution of X (which are at nodes) by solving the MX=b or X = inv(M)B 
 # =============================================================================
 
-target_tally = np.zeros_like(tally_avg)
+target_tally = np.zeros(tally_avg_shape)
 for g in range(0, NE_group):
     target_tally_vector = np.dot(inv_global_mass_matrix, source_tally[g, :])
     
@@ -134,6 +166,14 @@ for g in range(0, NE_group):
             i_node = ix + (iy+1) * (Nx+1)
             target_tally[g, ix, iy, 3] = target_tally_vector[i_node]
 
+# store the target_tally
+file_target_tally = h5py.File("miel_lagrange_tally.h5", 'w')
+file_target_tally.create_dataset("elemental-coefficients", data=target_tally)
+file_target_tally.create_dataset("x-bounds", data = x_bounds)
+file_target_tally.create_dataset("y-bounds", data = y_bounds)
+if (is_energy_filter):
+    file_target_tally.create_dataset("energy-bounds", data = energy_bounds)
+file_target_tally.close()
 
 # =============================================================================
 # Functions to evaluate the corrdinate and Lagrange Tally
@@ -161,23 +201,29 @@ def get_element_location_in_lagrange_linear(x: float, y:float):
     
     return (ix, iy)
 
-
-def evaluate_tally(g : int, xi: float, eta: float, ix : int, iy: int):
+def evaluate_tally(g : int, point_x: float, point_y: float):
+    # get the index 
+    loc_ix, loc_iy = get_element_location_in_lagrange_linear(point_x, point_y)
+    
+    # get the scaled position
+    xi, eta, area = get_scaled_xi_eta(point_x, loc_ix, point_y, loc_iy)
+    
     value = 0.
 
     N1 = 0.25 * (1-xi) * (1-eta)
-    value += target_tally[g, ix, iy, 0] * N1
+    value += target_tally[g, loc_ix, loc_iy, 0] * N1
     
     N2 = 0.25 * (1+xi) * (1-eta)
-    value += target_tally[g, ix, iy, 1] * N2
+    value += target_tally[g, loc_ix, loc_iy, 1] * N2
     
     N3 = 0.25 * (1+xi) * (1+eta)
-    value += target_tally[g, ix, iy, 2] * N3
+    value += target_tally[g, loc_ix, loc_iy, 2] * N3
     
     N4 = 0.25 * (1-xi) * (1+eta)
-    value += target_tally[g, ix, iy, 3] * N4
+    value += target_tally[g, loc_ix, loc_iy, 3] * N4
     
     return value 
+
 
 # =============================================================================
 # get the 2D at the mid point of the fine mesh tally and comapres 
@@ -206,19 +252,7 @@ fine_mesh_avg_volume = dx_fine_mesh * dy_fine_mesh #* dz_fine_mesh
 
 fine_mesh_tally_avg /= fine_mesh_avg_volume
 
-# get the points along the diagonal direction
-diagonal_line = []
-for ixy in range(0, len(fine_mesh_y)):
-    point_y = fine_mesh_y[ixy]    
-    point_x = fine_mesh_x[ixy]
-    radial_value = np.sqrt(point_x** 2 + point_y**2)
-    if (point_x < 0. and point_y < 0.):
-        radial_value *= -1
-    diagonal_line.append( radial_value )
-        
-        
 for g in range(0, NE_group):
-    # while reconstructing, flux needs to be normalised by the volume integral of the element    
     linear_lagrange_reconstruct = np.zeros([len(fine_mesh_x), len(fine_mesh_y)])
     
     for iy in range(0, len(fine_mesh_y)):
@@ -226,79 +260,16 @@ for g in range(0, NE_group):
                 
         for ix in range(0, len(fine_mesh_x)):
             point_x = fine_mesh_x[ix]        
-            
-            loc_ix, loc_iy = get_element_location_in_lagrange_linear(point_x, point_y)
-            
-            xi, eta, area = get_scaled_xi_eta(point_x, loc_ix, point_y, loc_iy)
-            
-            loc_ix, loc_iy = get_element_location_in_lagrange_linear(point_x, point_y)
-            
-            linear_lagrange_reconstruct[ix, iy] = evaluate_tally(g, xi, eta, loc_ix, loc_iy) 
+            linear_lagrange_reconstruct[ix, iy] = evaluate_tally(g, point_x, point_y) 
         
-# =============================================================================
-# plot the results
-# =============================================================================
 
-    plt.figure("lagrange-2D")
-    plt.pcolormesh(fine_mesh_x_bounds, fine_mesh_y_bounds, linear_lagrange_reconstruct)
-    
-    plt.xlabel("x [cm]")
-    plt.ylabel("y [cm]")
-    plt.title("C5G7 group-{:} Lagrange Linear Quad4 Element".format(g))
-    
-    plt.savefig("plots/flux_contour_group_{:}.png".format(g), dpi = 300, bbox_inches = "tight")
-  
-
-    
-    # plot along the diagonal line
-    flux_along_diag_lagrange = []
-    flux_along_fine_mesh = []
-    for ixy in range(0, len(fine_mesh_y)):
-        flux_along_diag_lagrange.append(linear_lagrange_reconstruct[ixy, ixy])    
-        flux_along_fine_mesh.append(fine_mesh_tally_avg[g, ixy, ixy])
-
-    plt.figure("line-plot-along-diagaonal-group-{:}".format(g))
-    plt.plot(diagonal_line, flux_along_diag_lagrange, label = "Lagrange Linear Quad4 Element")
-    plt.plot(diagonal_line, flux_along_fine_mesh, label = "standard-mesh-tally")
-    
-    plt.xlabel("r [cm]")
-    plt.ylabel("Flux [Arb. Units]")
-    plt.title("C5G7: group-{:} flux along the diagonal".format(g))
-    plt.legend()
-    plt.savefig("plots/flux_along_diagonal_group_{:}.png".format(g), dpi = 300, bbox_inches = "tight")
-      
-  
 # =============================================================================
-# Plot the volume integral
+# Relative Difference in Volume integral of the quantity
 # =============================================================================
 
-# volume integral of N1, N2, N3, and N4 will be 1.
-linear_lagrange_vol_integral = 0.25 * np.sum(target_tally, axis= 3) 
-rel_error_linear_lagrange_vol_integral = 100. * (1 - np.divide(linear_lagrange_vol_integral, 
-                                                               fine_mesh_tally_avg, 
-                                                               out = np.zeros_like(linear_lagrange_vol_integral),
-                                                               where = fine_mesh_tally_avg != 0.))
-
-g = 0
-plt.figure("relative-error-2D")
-norm = TwoSlopeNorm(vcenter= 0., 
-                    vmax = np.max(rel_error_linear_lagrange_vol_integral[: 17*3 *2, : 17*3 *2 ]),
-                    vmin = np.min(rel_error_linear_lagrange_vol_integral[: 17*3 *2, : 17*3 *2 ]))
-plt.pcolormesh(fine_mesh_x_bounds[: 17*3 *2 + 1], 
-               fine_mesh_y_bounds[: 17*3 *2 + 1], 
-               rel_error_linear_lagrange_vol_integral[g, : 17*3*2, : 17*3*2],
-               cmap = "bwr",
-               norm = norm)
-plt.colorbar()
-
-plt.xlabel("x [cm]")
-plt.ylabel("y [cm]")
-plt.title("C5G7 group-{:} Relative Error (%)in the Lagrange Linear".format(g))
-
-plt.savefig("plots/rel_error_lux_contour_group_{:}.png".format(g), dpi = 300, bbox_inches = "tight")
-
-
-
-
-  
-  
+# # volume integral of N1, N2, N3, and N4 will be 1.
+# linear_lagrange_vol_integral = 0.25 * np.sum(target_tally, axis= 3) 
+# rel_error_linear_lagrange_vol_integral = 100. * (1 - np.divide(linear_lagrange_vol_integral, 
+#                                                             fine_mesh_tally_avg, 
+#                                                             out = np.zeros_like(linear_lagrange_vol_integral),
+#                                                             where = fine_mesh_tally_avg != 0.))
