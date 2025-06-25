@@ -30,22 +30,13 @@ Nx = np.shape(x_bounds)[0] - 1
 Ny = np.shape(y_bounds)[0] - 1
 
 N_nodes = (Nx+1)*(Ny+1)
+tally_avg_shape = np.array([Nx, Ny, 4])
 source_tally = np.zeros(N_nodes)
 
-for ix in range(0, Nx):
-    for iy in range(0, Ny):
+for ix in range(0, Nx+1):
+    for iy in range(0, Ny+1):
         i_node = ix + iy * (Nx+1)
-        source_tally[i_node] += tally_avg[ix, iy, 0] # N1
-        
-        i_node = (ix+1) + iy * (Nx+1)
-        source_tally[i_node] += tally_avg[ix, iy, 1] # N2
-        
-        i_node = (ix+1) + (iy+1) * (Nx+1)
-        source_tally[i_node] += tally_avg[ix, iy, 2] # N3
-
-        i_node = ix + (iy+1) * (Nx+1)
-        source_tally[i_node] += tally_avg[ix, iy, 3] # N4
-        
+        source_tally[i_node] += tally_avg[ix, iy]        
 
 # =============================================================================
 # construction of global mass-matrix
@@ -108,7 +99,7 @@ target_tally_vector = np.dot(inv_global_mass_matrix, source_tally)
 # the target tally is arragened element wise so, reconstruct it to 2D array
 # also it needs to be normalised by the volume integral
 
-target_tally = np.zeros_like(tally_avg)
+target_tally = np.zeros(tally_avg_shape)
 for ix in range(0, Nx):
     for iy in range(0, Ny):
         # N1
@@ -129,31 +120,8 @@ for ix in range(0, Nx):
 
 
 # =============================================================================
-# Compare the tally at the mid point of the fine mesh tally
+# Functions to evaluate the corrdinate and Lagrange Tally
 # =============================================================================
-
-fine_mesh_tally = file["results"]["fine-mesh"]
-fine_mesh_tally_avg = np.array(fine_mesh_tally["avg"])
-fine_mesh_tally_pos_filter_id = fine_mesh_tally.attrs["position-filter"]
-fine_mesh_position_filter = file["tally-filters"]["position-filters"][str(fine_mesh_tally_pos_filter_id)]
-fine_mesh_x_bounds = fine_mesh_position_filter["x-bounds"]
-fine_mesh_y_bounds = fine_mesh_position_filter["y-bounds"]
-fine_mesh_z_bounds = fine_mesh_position_filter["z-bounds"]
-
-fine_mesh_x = []
-fine_mesh_y = []
-dx_fine_mesh = fine_mesh_x_bounds[1] - fine_mesh_x_bounds[0]
-for i in range(0, len(fine_mesh_x_bounds)-1):
-    fine_mesh_x.append( 0.5 * (fine_mesh_x_bounds[i]+fine_mesh_x_bounds[i+1]) )
-
-dy_fine_mesh = fine_mesh_y_bounds[1] - fine_mesh_y_bounds[0]
-for i in range(0, len(fine_mesh_y_bounds)-1):
-    fine_mesh_y.append( 0.5 * (fine_mesh_y_bounds[i]+fine_mesh_y_bounds[i+1]) )
-
-dz_fine_mesh = fine_mesh_z_bounds[1] - fine_mesh_z_bounds[0]
-fine_mesh_avg_volume = dx_fine_mesh * dy_fine_mesh #* dz_fine_mesh
-
-fine_mesh_tally_avg /= fine_mesh_avg_volume
 
 # function to get the scaled x and y or xi and eta
 def get_scaled_xi_eta(x: float, loc_ix : int, 
@@ -195,6 +163,32 @@ def evaluate_tally(xi: float, eta: float, ix : int, iy: int):
     
     return value 
 
+# =============================================================================
+# Compare the tally at the mid point of the fine mesh tally
+# =============================================================================
+fine_mesh_tally = file["results"]["fine-mesh"]
+fine_mesh_tally_avg = np.array(fine_mesh_tally["avg"])
+fine_mesh_tally_pos_filter_id = fine_mesh_tally.attrs["position-filter"]
+fine_mesh_position_filter = file["tally-filters"]["position-filters"][str(fine_mesh_tally_pos_filter_id)]
+fine_mesh_x_bounds = fine_mesh_position_filter["x-bounds"]
+fine_mesh_y_bounds = fine_mesh_position_filter["y-bounds"]
+fine_mesh_z_bounds = fine_mesh_position_filter["z-bounds"]
+
+fine_mesh_x = []
+fine_mesh_y = []
+dx_fine_mesh = fine_mesh_x_bounds[1] - fine_mesh_x_bounds[0]
+for i in range(0, len(fine_mesh_x_bounds)-1):
+    fine_mesh_x.append( 0.5 * (fine_mesh_x_bounds[i]+fine_mesh_x_bounds[i+1]) )
+
+dy_fine_mesh = fine_mesh_y_bounds[1] - fine_mesh_y_bounds[0]
+for i in range(0, len(fine_mesh_y_bounds)-1):
+    fine_mesh_y.append( 0.5 * (fine_mesh_y_bounds[i]+fine_mesh_y_bounds[i+1]) )
+
+dz_fine_mesh = fine_mesh_z_bounds[1] - fine_mesh_z_bounds[0]
+fine_mesh_avg_volume = dx_fine_mesh * dy_fine_mesh #* dz_fine_mesh
+
+fine_mesh_tally_avg /= fine_mesh_avg_volume
+
 # while reconstructing, flux needs to be normalised by the volume integral of the element
 linear_lagrange_reconstruct = np.zeros([len(fine_mesh_x), len(fine_mesh_y)])
 
@@ -208,9 +202,6 @@ for iy in range(0, len(fine_mesh_y)):
         xi, eta, area = get_scaled_xi_eta(point_x, loc_ix, point_y, loc_iy)
         
         linear_lagrange_reconstruct[ix, iy] = evaluate_tally(xi, eta, loc_ix, loc_iy)
-        
-
-
         
 # =============================================================================
 # plot the results

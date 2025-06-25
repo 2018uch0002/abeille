@@ -45,8 +45,10 @@ LagrangeQuadElementFET::LagrangeQuadElementFET(
   index_z_ = 2;
 
   if (sd_ == SpacialDomain::XY) {
-    tally_shape.push_back(position_shape[0]);
-    tally_shape.push_back(position_shape[1]);
+    //tally_shape.push_back(position_shape[0]);
+    // tally_shape.push_back(position_shape[1]);
+    tally_shape.push_back(position_shape[0] + 1);
+    tally_shape.push_back(position_shape[1] + 1);
   } else {
     fatal_error("Only xy plane is supported.");
   }
@@ -64,7 +66,7 @@ LagrangeQuadElementFET::LagrangeQuadElementFET(
     fatal_error("LagrangeQuadElementFET only spports linear shape function.");
   }
 
-  tally_shape.push_back(4); // for linear shape elements
+  // tally_shape.push_back(4); // for linear shape elements
 
   // reallocate and fill with zeros for the tally avg, gen-score and variance
   tally_avg_.resize(tally_shape);
@@ -117,8 +119,8 @@ void LagrangeQuadElementFET::score_collision(const Particle& p,
   const double eta = 2. * (trkr.r().y() -ymin_) * inv_dy_ - 1.;
 
   // add the index for shape-element
-  const std::size_t index_shape_ele = indices.size();
-  indices.push_back(0);
+  // const std::size_t index_shape_ele = indices.size();
+  // indices.push_back(0);
 
   // add the score at the xmin-ymin: N1
 #ifdef ABEILLE_USE_OMP
@@ -127,21 +129,24 @@ void LagrangeQuadElementFET::score_collision(const Particle& p,
   tally_gen_score_.element(indices.begin(), indices.end()) += collision_score * 0.25 * (1.-xi) * (1.-eta);
 
   // add the score at the xmax-ymin: N2
-  indices[index_shape_ele] += 1;
+  // indices[index_shape_ele] += 1;
+  indices[loc_e_] += 1;
 #ifdef ABEILLE_USE_OMP
 #pragma omp atomic
 #endif
   tally_gen_score_.element(indices.begin(), indices.end()) += collision_score * 0.25 * (1.+xi) * (1.-eta);
 
   // add the score at the xmax-ymax: N3
-  indices[index_shape_ele] += 1;
+  // indices[index_shape_ele] += 1;
+  indices[loc_e_+1] += 1;
 #ifdef ABEILLE_USE_OMP
 #pragma omp atomic
 #endif
   tally_gen_score_.element(indices.begin(), indices.end()) += collision_score * 0.25 * (1.+xi) * (1.+eta);
 
   // add the score at the xmin-ymax: N4
-  indices[index_shape_ele] += 1;
+  // indices[index_shape_ele] += 1;
+  indices[loc_e_] -= 1;
 #ifdef ABEILLE_USE_OMP
 #pragma omp atomic
 #endif
