@@ -82,4 +82,5 @@ set(ABEILLE_SOURCE_FILES ${ABEILLE_SOURCE_FILES}
   src/zernike_polynomial.cpp
   src/zernike_fet.cpp
   src/rect_assembly_position_filter.cpp
+  src/fuelpin_approximate_cancelator.cpp 
 )

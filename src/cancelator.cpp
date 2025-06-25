@@ -25,6 +25,7 @@
 #include <cancelator/approximate_mesh_cancelator.hpp>
 #include <cancelator/cancelator.hpp>
 #include <cancelator/exact_mg_cancelator.hpp>
+#include <cancelator/fuelpin_approximate_cancelator.hpp>
 #include <utils/error.hpp>
 #include <utils/settings.hpp>
 
@@ -38,6 +39,8 @@ std::shared_ptr<Cancelator> make_cancelator(const YAML::Node& node) {
 
   if (type == "approximate") {
     cancelator = make_approximate_mesh_cancelator(node);
+  } else if (type == "fuelpin-approximate"){
+    cancelator = make_fuelpin_approximate_cancelator(node);
   } else if (type == "exact") {
     // Check that we are not in CE mode !
     if (settings::energy_mode == settings::EnergyMode::CE) {

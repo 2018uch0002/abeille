@@ -374,6 +374,25 @@ simulation:
   #  hi: [10.71, 10.71, 85.69] 
   #  nsamples: 20
 
+  #cancelator:
+    #type: approximate
+    #shape: [102, 102, 1]
+    #low: [-32.13, -32.13, -107.11]
+    #hi: [32.13, 32.13, 85.69] 
+  #  nsamples: 20
+  cancelator:
+    type: fuelpin-approximate
+    low: [-32.13, -32.13, -107.1]
+    high: [32.13, 32.13, 85.68]
+    assembly-pitch: [21.42, 21.42, 192.9]
+    assembly-shape: [7, 7, 1]
+    fuelpin-pitch: [1.26, 1.26, 192.9]
+    fuelpin-per-assembly: [17, 17, 1]
+    inter-assembly-gap: [0., 0., 0.]
+    axial-orientation: z
+    radius: 0.54
+    rings: 1
+
 
 # Plots of the geometry may be created in the .ppm format.
 # It takes a slice of the geometry along the xy, xz, or yz basis. The
