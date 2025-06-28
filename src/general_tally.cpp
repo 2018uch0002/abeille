@@ -155,38 +155,11 @@ void GeneralTally::score_flight(const Particle& p, const Tracker& trkr,
 
     const double d = position_indices[iter].distance;
 
-    const double track_score = d*flight_score;
-    if (std::isnan(track_score)){
-      std::stringstream mssg;
-      for (auto& p : position_indices){
-        mssg << "Found the nan value: d_flight= " << d_flight << "\t distance = " << d;
-        mssg << "\tindex = (" << all_indices[0] << ", " << all_indices[1] << " [index-Shape";
-        mssg <<  position_indices[iter].index.size() << "]" << ") with direction: ";
-        mssg << trkr.u() << " and position = " << trkr.r() << "\n\n";
-      }
-      mssg << "--------------------------- ";
-      warning(mssg.str()); 
-    }
-
-    if(std::abs(1. - d / d_flight) > SURFACE_COINCIDENT)  {
-      std::stringstream mssg;
-      mssg << std::setprecision(15);
-      mssg << "tally: " << tally_name_ << "\t distance = " << d << "\td_flight = " << d_flight;
-      mssg << "\tindex = " << position_indices[iter].index[0] << ", " << position_indices[iter].index[1];
-      mssg << "\tindex-size = " << position_indices[iter].index.size();  
-      mssg << "\tr = " << trkr.r() << "\t u = " << trkr.u() << std::endl;
-      StaticVector3 pos_index = position_filter_->get_indices(trkr);
-      for (auto& pp : pos_index){
-          mssg << pp << "\t";
-      }
-      mssg << std::endl;
-      fatal_error(mssg.str());
-    }
-
 #ifdef ABEILLE_USE_OMP
 #pragma omp atomic
 #endif
-    tally_gen_score_.element(all_indices.begin(), all_indices.end()) += track_score;
+    tally_gen_score_.element(all_indices.begin(), all_indices.end()) +=
+        d * flight_score;
   }
 }
 

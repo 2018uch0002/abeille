@@ -143,13 +143,10 @@ class CylinderFilter : public PositionFilter {
 
  public:
   std::pair<double, int> distance_to_next_index(
-      const Position& r, const Direction& u, const double& ux_inv,
+      const Position& r, const Direction& u, const double& d_flight, const double& ux_inv,
       const double& uy_inv, const double& uz_inv,
       const double& sine_pol_sqr_inv, const std::array<int, 3>& on, int i,
       int j, int k, double& cross_distance) const;
-  std::optional<TracklengthDistance> distance_at_last_index(
-      const Position& end_point, double& d_flight, Direction u, double ux_inv, double uy_inv,
-      double uz_inv, const double& sine_pol_sqr_inv) const;
 };
 
 std::shared_ptr<CylinderFilter> make_cylinder_filter(const YAML::Node& node);
