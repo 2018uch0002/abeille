@@ -234,11 +234,6 @@ StaticVector3 CylinderFilter::get_shape() const {
 
 std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
     const Tracker& trkr, double d_flight) const {
-  if (infinite_length_) {
-    fatal_error(
-        "the conditions for infinite cylinder filter is not yet implemented "
-        "for the track-length.");
-  }
   std::vector<TracklengthDistance> indices_tracklength;
   TracklengthDistance trlen_d;
 
@@ -248,7 +243,7 @@ std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
   const double uy_inv = 1. / u.y();
   const double uz_inv = 1. / u.z();
 
-  bool inside_bin = false;
+  // bool inside_bin = false;
 
   int i = 0, j = 0, k = 0;
   std::array<int, 3> on;
@@ -259,7 +254,7 @@ std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
   if ((i >= 0 && i < static_cast<int>(Nx_)) &&
       (j >= 0 && j < static_cast<int>(Ny_)) &&
       ((k >= 0 && k < static_cast<int>(Nz_)) || infinite_length_)) {
-    inside_bin = true;
+    // inside_bin = true;
   } else {
     // if particle is not inside, then it can pass through the tally-region.
     if (find_entry_point(r, u, ux_inv, uy_inv, uz_inv, d_flight) == false) {
@@ -270,7 +265,7 @@ std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
     if ((i >= 0 && i < static_cast<int>(Nx_)) &&
         (j >= 0 && j < static_cast<int>(Ny_)) &&
         ((k >= 0 && k < static_cast<int>(Nz_)) || infinite_length_)) {
-      inside_bin = true;
+      // inside_bin = true;
     } else {
       // This is a problem, in theory, we should now be inside the tally
       // region. We will therefore spew a warning here.
@@ -367,7 +362,8 @@ std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
     if (cross_distance != 0.) {
       // Make the score if we are in a valid cell and crosses the cylinder
       if (i >= 0 && i < static_cast<int>(Nx_) && j >= 0 &&
-          j < static_cast<int>(Ny_) && k >= 0 && k < static_cast<int>(Nz_)) {
+          j < static_cast<int>(Ny_) &&
+          ((k >= 0 && k < static_cast<int>(Nz_)) || infinite_length_)) {
         std::size_t ui = static_cast<std::size_t>(i);
         std::size_t uj = static_cast<std::size_t>(j);
         std::size_t uk = static_cast<std::size_t>(k);
@@ -407,7 +403,9 @@ void CylinderFilter::initialize_indices(const Position& r, const Direction& u,
   // get the index based on the position
   i = static_cast<int>(std::floor((r.x() - r_low_.x()) * inv_pitch_x_));
   j = static_cast<int>(std::floor((r.y() - r_low_.y()) * inv_pitch_y_));
-  k = static_cast<int>(std::floor((r.z() - r_low_.z()) * inv_dz_));
+  k = infinite_length_
+          ? 0
+          : static_cast<int>(std::floor((r.z() - r_low_.z()) * inv_dz_));
 
   // Get tile boundaries
   const double xl = r_low_.x() + static_cast<double>(i) * pitch_x_;
@@ -450,19 +448,21 @@ void CylinderFilter::initialize_indices(const Position& r, const Direction& u,
     }
   }
 
-  if (std::abs(zl - r.z()) < SURFACE_COINCIDENT) {
-    if (u.z() < 0.) {
-      k--;
-      on[2] = 1;
-    } else {
-      on[2] = -1;
-    }
-  } else if (std::abs(zh - r.z()) < SURFACE_COINCIDENT) {
-    if (u.z() < 0.) {
-      on[2] = 1;
-    } else {
-      k++;
-      on[2] = -1;
+  if (infinite_length_ == false) {
+    if (std::abs(zl - r.z()) < SURFACE_COINCIDENT) {
+      if (u.z() < 0.) {
+        k--;
+        on[2] = 1;
+      } else {
+        on[2] = -1;
+      }
+    } else if (std::abs(zh - r.z()) < SURFACE_COINCIDENT) {
+      if (u.z() < 0.) {
+        on[2] = 1;
+      } else {
+        k++;
+        on[2] = -1;
+      }
     }
   }
 }
@@ -498,31 +498,33 @@ bool CylinderFilter::find_entry_point(Position& r, const Direction& u,
     d_max = d_y_max;
   }
 
-  double d_z_min = (r_low_.z() - r.z()) * uz_inv;
-  double d_z_max = (r_high_.z() - r.z()) * uz_inv;
+  if (infinite_length_ == false) {
+    double d_z_min = (r_low_.z() - r.z()) * uz_inv;
+    double d_z_max = (r_high_.z() - r.z()) * uz_inv;
 
-  if (d_z_min > d_z_max) {
-    std::swap(d_z_min, d_z_max);
-  }
+    if (d_z_min > d_z_max) {
+      std::swap(d_z_min, d_z_max);
+    }
 
-  if ((d_min > d_z_max) || (d_z_min > d_max)) {
-    return false;
-  }
+    if ((d_min > d_z_max) || (d_z_min > d_max)) {
+      return false;
+    }
 
-  if (d_z_min > d_min) {
-    d_min = d_z_min;
-  }
+    if (d_z_min > d_min) {
+      d_min = d_z_min;
+    }
 
-  if (d_z_max < d_max) {
-    d_max = d_z_max;
-  }
+    if (d_z_max < d_max) {
+      d_max = d_z_max;
+    }
 
-  if (d_max < d_min) {
-    std::swap(d_max, d_min);
-  }
+    if (d_max < d_min) {
+      std::swap(d_max, d_min);
+    }
 
-  if ((d_max < 0.) && (d_min < 0.)) {
-    return false;
+    if ((d_max < 0.) && (d_min < 0.)) {
+      return false;
+    }
   }
 
   if (d_min < 0.) {
@@ -551,22 +553,17 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
 
   const double new_origin_x = origin_.x() + static_cast<double>(i) * pitch_x_;
   const double new_origin_y = origin_.y() + static_cast<double>(j) * pitch_y_;
-  const double new_origin_z = origin_.z() + static_cast<double>(k) * dz_;
 
   // Check all six sides and get the possible crossing-distance in the box
   const double diff_xl = new_origin_x - 0.5 * pitch_x_ - r.x();
   const double diff_xh = diff_xl + pitch_x_;
   const double diff_yl = new_origin_y - 0.5 * pitch_y_ - r.y();
   const double diff_yh = diff_yl + pitch_y_;
-  const double diff_zl = new_origin_z - r.z();
-  const double diff_zh = diff_zl + dz_;
 
   const double d_xl = diff_xl * ux_inv;
   const double d_xh = diff_xh * ux_inv;
   const double d_yl = diff_yl * uy_inv;
   const double d_yh = diff_yh * uy_inv;
-  const double d_zl = diff_zl * uz_inv;
-  const double d_zh = diff_zh * uz_inv;
 
   if (d_xl > 0. && d_xl < box_dist && on[0] != -1) {
     box_dist = d_xl;
@@ -588,14 +585,21 @@ std::pair<double, int> CylinderFilter::distance_to_next_index(
     key = 2;
   }
 
-  if (d_zl > 0. && d_zl < box_dist && on[2] != -1) {
-    box_dist = d_zl;
-    key = -3;
-  }
+  if (infinite_length_ == false) {
+    const double new_origin_z = origin_.z() + static_cast<double>(k) * dz_;
+    const double diff_zl = new_origin_z - r.z();
+    const double diff_zh = diff_zl + dz_;
+    const double d_zl = diff_zl * uz_inv;
+    const double d_zh = diff_zh * uz_inv;
+    if (d_zl > 0. && d_zl < box_dist && on[2] != -1) {
+      box_dist = d_zl;
+      key = -3;
+    }
 
-  if (d_zh > 0. && d_zh < box_dist && on[2] != 1) {
-    box_dist = d_zh;
-    key = 3;
+    if (d_zh > 0. && d_zh < box_dist && on[2] != 1) {
+      box_dist = d_zh;
+      key = 3;
+    }
   }
 
   // now get the true distance inside the bin.
