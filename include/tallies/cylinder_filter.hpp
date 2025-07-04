@@ -8,13 +8,6 @@
 
 #include <array>
 
-struct TracklengthPositionDistance {
-  StaticVector3 index;
-  Position r0;
-  double distance;
-};
-
-
 class CylinderFilter : public PositionFilter {
  public:
   enum class Orientation { X, Y, Z };
@@ -50,7 +43,7 @@ class CylinderFilter : public PositionFilter {
       const Tracker& trkr, double d_flight) const override final;
   
   std::vector<TracklengthPositionDistance> get_indices_tracklength_with_position(
-      const Tracker& trkr, double d_flight) const;
+      const Tracker& trkr, double d_flight) const override final;
 
   Orientation get_axial_direction() { return length_axis_; }
 

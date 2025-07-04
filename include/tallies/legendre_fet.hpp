@@ -29,11 +29,9 @@ class LegendreFET : public ITally {
   void score_collision(const Particle& p, const Tracker& trkr,
                        MaterialHelper& mat) override final;
 
-  void score_flight(const Particle& /*p*/, const Tracker& /*trkr*/,
-                    double /*d_flight*/,
-                    MaterialHelper& /*mat*/) override final {
-    fatal_error("the track-length for the legendre-fet is not supoorted yet.");
-  }
+  void score_flight(const Particle& p, const Tracker& trkr,
+                    double d_flight,
+                    MaterialHelper& mat) override final;
 
   void score_source(const BankedParticle& p) override final;
 

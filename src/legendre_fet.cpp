@@ -103,7 +103,7 @@ void LegendreFET::score_collision(const Particle& p, const Tracker& tktr,
 
   // Variables for scoring
   double beta_n, scaled_loc;
-  // Loop over the different axis and indexing is done
+  // Loop over the different axis
   for (std::size_t it_axis = 0; it_axis < axes_.size(); it_axis++) {
     // get the scaled x, y, or z for legendre polynomial
     switch (axes_[it_axis]) {
@@ -148,6 +148,152 @@ void LegendreFET::score_collision(const Particle& p, const Tracker& tktr,
 #endif
       tally_gen_score_.element(indices.begin(), indices.end()) += beta_n;
     }
+  }
+}
+
+void LegendreFET::score_flight(const Particle& p, const Tracker& trkr,
+                               double d_flight, MaterialHelper& mat) {
+  std::size_t index_E;
+  // get the energy-index, if energy-filter exists
+  if (energy_in_) {
+    std::optional<std::size_t> E_indx = energy_in_->get_index(p.E());
+    if (E_indx.has_value() == false) {
+      // Not inside any energy bin. Don't score.
+      return;
+    }
+
+    index_E = E_indx.value();
+  }
+
+  // get the cartisian_filter indices
+  std::vector<TracklengthPositionDistance> position_indices =
+      cartesian_filter_->get_indices_tracklength_with_position(trkr, d_flight);
+  if (position_indices.empty()) {
+    // No bin is found, don't score.
+    return;
+  }
+
+  const double flight_score =
+      particle_base_score(p.E(), p.wgt(), p.wgt2(), &mat);
+
+  for (std::size_t iter = 0; iter < position_indices.size(); iter++) {
+    StaticVector6 all_indices;
+    if (energy_in_) {
+      all_indices.push_back(index_E);
+    }
+    StaticVector3 pos_index = position_indices[iter].index;
+    all_indices.insert(all_indices.end(), pos_index.begin(), pos_index.end());
+
+    const double dist = position_indices[iter].distance;
+
+    // get the starting and end points with that bin
+    const Position r_start = position_indices[iter].r0;
+    const Position r_end = position_indices[iter].r0 + dist * p.u();
+
+    // add one dimesnion for FET-index
+    // this dimension will loop over all the order for differnt axes
+    const size_t FET_index = all_indices.size();
+    all_indices.push_back(0);
+
+    // index to iterate over the differnt order in axes
+    std::size_t it_coeff = 0;
+
+    // Variables for scoring
+    double beta_n, x1, x2, inv_dx;
+    // Loop over the different axis
+    for (std::size_t it_axis = 0; it_axis < axes_.size(); it_axis++) {
+      // get the scaled x, y, or z for legendre polynomial at the start and end
+      // points
+      switch (axes_[it_axis]) {
+        case LegendreFET::Axis::X: {
+          x1 = r_start.x();
+          x2 = r_end.x();
+          inv_dx = cartesian_filter_->inv_dx(pos_index);
+          if (x1 == x2) {  // handle the singularity condition
+            const double xmin_ = cartesian_filter_->x_min(pos_index);
+            x1 = 2. * (trkr.r().x() - xmin_) * inv_dx - 1.;
+          }
+        } break;
+
+        case LegendreFET::Axis::Y: {
+          x1 = r_start.y();
+          x2 = r_end.y();
+          inv_dx = cartesian_filter_->inv_dy(pos_index);
+          if (x1 == x2) {  // handle the singularity condition
+            const double ymin_ = cartesian_filter_->y_min(pos_index);
+            x1 = 2. * (trkr.r().y() - ymin_) * inv_dx - 1.;
+          }
+        } break;
+
+        case LegendreFET::Axis::Z: {
+          x1 = r_start.z();
+          x2 = r_end.z();
+          inv_dx = cartesian_filter_->inv_dz(pos_index);
+          if (x1 == x2) {  // handle the singularity condition
+            const double zmin_ = cartesian_filter_->z_min(pos_index);
+            x1 = 2. * (trkr.r().z() - zmin_) * inv_dx - 1.;
+          }
+        }
+      }
+
+      // loop over different FET order
+      // to evaluate the Legendre Polynomial one order more than fet-order
+      double p0_up_0 = 1., p0_up_d = 1.;
+      double p1_up_0 = x1, p1_up_d = x2;
+      double p2_up_0 = 1., p2_up_d = 1.;
+      
+      double dist_ratio = dist, inetegral_value = 1.;
+
+      // if x1 == x2, then integral will no longer be valid.
+      if (x1 == x2) {
+        p1_up_0 = 1.;
+        p1_up_d = 1.;
+      } else {
+        dist_ratio *= 1. /(x2 - x1);
+      }   
+    
+      for (std::size_t i = 0; i <= fet_order_[it_axis]; i++) {
+        if (i > 0) {
+          if (x1 != x2) {
+            // recursive relation to evaluate the legendre
+            p2_up_0 = (x1 * static_cast<double>(2 * i + 1) * p1_up_0 -
+                       static_cast<double>(i) * p0_up_0) /
+                      static_cast<double>(i + 1);
+            p2_up_d = (x2 * static_cast<double>(2 * i + 1) * p1_up_d -
+                       static_cast<double>(i) * p0_up_d) /
+                      static_cast<double>(i + 1);
+
+            inetegral_value = (p2_up_d - p2_up_0 - p0_up_d + p0_up_0) /
+                              static_cast<double>(2 * i + 1);
+
+            p0_up_0 = p1_up_0;
+            p1_up_0 = p2_up_0;
+
+            p0_up_d = p1_up_d;
+            p1_up_d = p2_up_d;
+
+          } else {
+            // if we are here, that means the this track has the sinuglar
+            // condition.
+            p2_up_0 = (x1 * static_cast<double>(2 * i - 1) * p1_up_0 -
+                       static_cast<double>(i - 1) * p0_up_0) /
+                      static_cast<double>(i);
+            p0_up_0 = p1_up_0;
+            p1_up_0 = p2_up_0;
+          }
+        }
+
+        // scoring value correponding to the order
+        beta_n = flight_score * dist_ratio * inetegral_value;
+        all_indices[FET_index] = it_coeff;
+        it_coeff++;
+      
+#ifdef ABEILLE_USE_OMP
+#pragma omp atomic
+#endif
+      tally_gen_score_.element(all_indices.begin(), all_indices.end()) += beta_n;
+      }
+    }  
   }
 }
 
@@ -524,9 +670,6 @@ std::shared_ptr<LegendreFET> make_legendre_fet(const YAML::Node& node) {
     estimator = Estimator::Collision;
   } else if (estimator_name == "track-length") {
     estimator = Estimator::TrackLength;
-    fatal_error(
-        "On tally " + name +
-        ", track-length estimator is not yet supported on legendre-fet.");
   } else if (estimator_name == "source") {
     estimator = Estimator::Source;
   } else {

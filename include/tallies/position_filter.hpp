@@ -18,6 +18,12 @@ struct TracklengthDistance {
   double distance;
 };
 
+struct TracklengthPositionDistance {
+  StaticVector3 index;
+  Position r0;
+  double distance;
+};
+
 class PositionFilter {
  public:
   PositionFilter() = default;
@@ -28,6 +34,9 @@ class PositionFilter {
   virtual StaticVector3 get_indices(const Tracker& tktr) const = 0;
 
   virtual std::vector<TracklengthDistance> get_indices_tracklength(
+      const Tracker& trkr, double d_flight) const = 0;
+
+  virtual std::vector<TracklengthPositionDistance> get_indices_tracklength_with_position(
       const Tracker& trkr, double d_flight) const = 0;
 
   virtual StaticVector3 get_shape() const = 0;
