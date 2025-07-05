@@ -97,7 +97,7 @@ void GeneralTally::score_collision(const Particle& p, const Tracker& trkr,
 
 void GeneralTally::score_flight(const Particle& p, const Tracker& trkr,
                                 double d_flight, MaterialHelper& mat) {
-  // if position filter and energy-filter are not exit, then score and return
+  // if position-filter and energy-filter do not exist, then score and return
   if (position_filter_ == nullptr && energy_in_ == nullptr) {
     const double flight_score =
         particle_base_score(p.E(), p.wgt(), p.wgt2(), &mat);

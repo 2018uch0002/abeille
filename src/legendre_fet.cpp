@@ -199,67 +199,59 @@ void LegendreFET::score_flight(const Particle& p, const Tracker& trkr,
     std::size_t it_coeff = 0;
 
     // Variables for scoring
-    double beta_n, x1, x2, inv_dx;
+    double beta_n, scaled_loc_0, scaled_loc_d, inv_bin_width;
     // Loop over the different axis
     for (std::size_t it_axis = 0; it_axis < axes_.size(); it_axis++) {
       // get the scaled x, y, or z for legendre polynomial at the start and end
       // points
       switch (axes_[it_axis]) {
         case LegendreFET::Axis::X: {
-          x1 = r_start.x();
-          x2 = r_end.x();
-          inv_dx = cartesian_filter_->inv_dx(pos_index);
-          if (x1 == x2) {  // handle the singularity condition
-            const double xmin_ = cartesian_filter_->x_min(pos_index);
-            x1 = 2. * (trkr.r().x() - xmin_) * inv_dx - 1.;
-          }
+          inv_bin_width = cartesian_filter_->inv_dx(pos_index);
+          const double xmin_ = cartesian_filter_->x_min(pos_index);
+          scaled_loc_0 = 2. * (r_start.x() - xmin_) * inv_bin_width - 1.;
+          scaled_loc_d = 2. * (r_end.x() - xmin_) * inv_bin_width - 1.;
         } break;
 
         case LegendreFET::Axis::Y: {
-          x1 = r_start.y();
-          x2 = r_end.y();
-          inv_dx = cartesian_filter_->inv_dy(pos_index);
-          if (x1 == x2) {  // handle the singularity condition
-            const double ymin_ = cartesian_filter_->y_min(pos_index);
-            x1 = 2. * (trkr.r().y() - ymin_) * inv_dx - 1.;
-          }
+          inv_bin_width = cartesian_filter_->inv_dy(pos_index);
+          const double ymin_ = cartesian_filter_->y_min(pos_index);
+          scaled_loc_0 = 2. * (r_start.y() - ymin_) * inv_bin_width - 1.;
+          scaled_loc_d = 2. * (r_end.y() - ymin_) * inv_bin_width - 1.;
         } break;
 
         case LegendreFET::Axis::Z: {
-          x1 = r_start.z();
-          x2 = r_end.z();
-          inv_dx = cartesian_filter_->inv_dz(pos_index);
-          if (x1 == x2) {  // handle the singularity condition
-            const double zmin_ = cartesian_filter_->z_min(pos_index);
-            x1 = 2. * (trkr.r().z() - zmin_) * inv_dx - 1.;
-          }
+          inv_bin_width = cartesian_filter_->inv_dz(pos_index);
+          const double zmin_ = cartesian_filter_->z_min(pos_index);
+          scaled_loc_0 = 2. * (r_start.z() - zmin_) * inv_bin_width - 1.;
+          scaled_loc_d = 2. * (r_end.z() - zmin_) * inv_bin_width - 1.;
         }
       }
 
       // loop over different FET order
       // to evaluate the Legendre Polynomial one order more than fet-order
       double p0_up_0 = 1., p0_up_d = 1.;
-      double p1_up_0 = x1, p1_up_d = x2;
+      double p1_up_0 = scaled_loc_0, p1_up_d = scaled_loc_d;
       double p2_up_0 = 1., p2_up_d = 1.;
-      
+
       double dist_ratio = dist, inetegral_value = 1.;
 
-      // if x1 == x2, then integral will no longer be valid.
-      if (x1 == x2) {
+      // if scaled_loc_0 == scaled_loc_d, then integral will no longer be valid.
+      if (scaled_loc_0 == scaled_loc_d) {
         p1_up_0 = 1.;
         p1_up_d = 1.;
       } else {
-        dist_ratio *= 1. /(x2 - x1);
-      }   
-    
+        dist_ratio *= 1. / (scaled_loc_d - scaled_loc_0);
+        inetegral_value = (scaled_loc_d - scaled_loc_0);
+      }
+
       for (std::size_t i = 0; i <= fet_order_[it_axis]; i++) {
         if (i > 0) {
-          if (x1 != x2) {
+          if (scaled_loc_0 != scaled_loc_d) {
             // recursive relation to evaluate the legendre
-            p2_up_0 = (x1 * static_cast<double>(2 * i + 1) * p1_up_0 -
+            p2_up_0 = (scaled_loc_0 * static_cast<double>(2 * i + 1) * p1_up_0 -
                        static_cast<double>(i) * p0_up_0) /
                       static_cast<double>(i + 1);
-            p2_up_d = (x2 * static_cast<double>(2 * i + 1) * p1_up_d -
+            p2_up_d = (scaled_loc_d * static_cast<double>(2 * i + 1) * p1_up_d -
                        static_cast<double>(i) * p0_up_d) /
                       static_cast<double>(i + 1);
 
@@ -275,7 +267,7 @@ void LegendreFET::score_flight(const Particle& p, const Tracker& trkr,
           } else {
             // if we are here, that means the this track has the sinuglar
             // condition.
-            p2_up_0 = (x1 * static_cast<double>(2 * i - 1) * p1_up_0 -
+            p2_up_0 = (scaled_loc_0 * static_cast<double>(2 * i - 1) * p1_up_0 -
                        static_cast<double>(i - 1) * p0_up_0) /
                       static_cast<double>(i);
             p0_up_0 = p1_up_0;
@@ -287,13 +279,14 @@ void LegendreFET::score_flight(const Particle& p, const Tracker& trkr,
         beta_n = flight_score * dist_ratio * inetegral_value;
         all_indices[FET_index] = it_coeff;
         it_coeff++;
-      
+
 #ifdef ABEILLE_USE_OMP
 #pragma omp atomic
 #endif
-      tally_gen_score_.element(all_indices.begin(), all_indices.end()) += beta_n;
+        tally_gen_score_.element(all_indices.begin(), all_indices.end()) +=
+            beta_n;
       }
-    }  
+    }
   }
 }
 
