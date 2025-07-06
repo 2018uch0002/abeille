@@ -169,9 +169,9 @@ StaticVector3 CylinderFilter::get_indices(const Tracker& tktr) const {
       ny < static_cast<int>(Ny_) &&
       ((nz >= 0 && nz < static_cast<int>(Nz_)) || infinite_length_)) {
     // check if the position is inside the circular radius or not
-    if (std::sqrt((new_origin_x - r.x()) * (new_origin_x - r.x()) +
-                  (new_origin_y - r.y()) * (new_origin_y - r.y())) <=
-        (radius_ + 1E-15)) {
+    if (((new_origin_x - r.x()) * (new_origin_x - r.x()) +
+         (new_origin_y - r.y()) * (new_origin_y - r.y())) <=
+        radius_ * radius_) {
       indices.push_back(static_cast<std::size_t>(nx));
       indices.push_back(static_cast<std::size_t>(ny));
       indices.push_back(static_cast<std::size_t>(nz));
@@ -204,9 +204,9 @@ StaticVector3 CylinderFilter::get_position_index(const Position& r) const {
       ny < static_cast<int>(Ny_) &&
       ((nz >= 0 && nz < static_cast<int>(Nz_)) || infinite_length_)) {
     // check if the position is inside the circular radius or not
-    if (std::sqrt((new_origin_x - maped_r.x()) * (new_origin_x - maped_r.x()) +
-                  (new_origin_y - maped_r.y()) *
-                      (new_origin_y - maped_r.y())) <= (radius_ + 1E-15)) {
+    if (((new_origin_x - maped_r.x()) * (new_origin_x - maped_r.x()) +
+         (new_origin_y - maped_r.y()) * (new_origin_y - maped_r.y())) <=
+        radius_ * radius_) {
       indices.push_back(static_cast<std::size_t>(nx));
       indices.push_back(static_cast<std::size_t>(ny));
       indices.push_back(static_cast<std::size_t>(nz));
@@ -395,8 +395,9 @@ std::vector<TracklengthDistance> CylinderFilter::get_indices_tracklength(
   return indices_tracklength;
 }
 
-std::vector<TracklengthPositionDistance> CylinderFilter::get_indices_tracklength_with_position(
-    const Tracker& trkr, double d_flight) const {
+std::vector<TracklengthPositionDistance>
+CylinderFilter::get_indices_tracklength_with_position(const Tracker& trkr,
+                                                      double d_flight) const {
   std::vector<TracklengthPositionDistance> indices_tracklength;
   TracklengthPositionDistance trlen_d;
 
@@ -508,9 +509,9 @@ std::vector<TracklengthPositionDistance> CylinderFilter::get_indices_tracklength
   Position start_r;
   while (d_flight > 0.) {
     // get the distance travelled in the current index
-    auto next_tile =
-        distance_start_position_to_next_index(r, u, d_flight, ux_inv, uy_inv, uz_inv,
-                               sine_pol_sqr_inv, on, i, j, k, cross_distance, start_r);
+    auto next_tile = distance_start_position_to_next_index(
+        r, u, d_flight, ux_inv, uy_inv, uz_inv, sine_pol_sqr_inv, on, i, j, k,
+        cross_distance, start_r);
     if (next_tile.first == INF) {
       // Something went wrong.... Don't score.
       Output::instance().save_warning(
@@ -562,7 +563,6 @@ std::vector<TracklengthPositionDistance> CylinderFilter::get_indices_tracklength
 
   return indices_tracklength;
 }
-
 
 void CylinderFilter::initialize_indices(const Position& r, const Direction& u,
                                         int& i, int& j, int& k,
@@ -995,7 +995,7 @@ std::pair<double, int> CylinderFilter::distance_start_position_to_next_index(
                     sine_pol_sqr_inv) -
           chord_length_half;
       start_r = r + dist_to_curve * u;
-      
+
       if ((box_dist - dist_to_curve) > 0.) {
         // this means particles moving towards the cylinder's curve surface
         // will intersect the cylinder. Particle can exit either after crossing

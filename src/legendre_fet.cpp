@@ -199,31 +199,31 @@ void LegendreFET::score_flight(const Particle& p, const Tracker& trkr,
     std::size_t it_coeff = 0;
 
     // Variables for scoring
-    double beta_n, scaled_loc_0, scaled_loc_d, inv_bin_width;
+    double beta_n, scaled_loc_0, scaled_loc_d;
     // Loop over the different axis
     for (std::size_t it_axis = 0; it_axis < axes_.size(); it_axis++) {
       // get the scaled x, y, or z for legendre polynomial at the start and end
       // points
       switch (axes_[it_axis]) {
         case LegendreFET::Axis::X: {
-          inv_bin_width = cartesian_filter_->inv_dx(pos_index);
+          const double inv_dx = cartesian_filter_->inv_dx(pos_index);
           const double xmin_ = cartesian_filter_->x_min(pos_index);
-          scaled_loc_0 = 2. * (r_start.x() - xmin_) * inv_bin_width - 1.;
-          scaled_loc_d = 2. * (r_end.x() - xmin_) * inv_bin_width - 1.;
+          scaled_loc_0 = 2. * (r_start.x() - xmin_) * inv_dx - 1.;
+          scaled_loc_d = 2. * (r_end.x() - xmin_) * inv_dx - 1.;
         } break;
 
         case LegendreFET::Axis::Y: {
-          inv_bin_width = cartesian_filter_->inv_dy(pos_index);
+          const double inv_dy = cartesian_filter_->inv_dy(pos_index);
           const double ymin_ = cartesian_filter_->y_min(pos_index);
-          scaled_loc_0 = 2. * (r_start.y() - ymin_) * inv_bin_width - 1.;
-          scaled_loc_d = 2. * (r_end.y() - ymin_) * inv_bin_width - 1.;
+          scaled_loc_0 = 2. * (r_start.y() - ymin_) * inv_dy - 1.;
+          scaled_loc_d = 2. * (r_end.y() - ymin_) * inv_dy - 1.;
         } break;
 
         case LegendreFET::Axis::Z: {
-          inv_bin_width = cartesian_filter_->inv_dz(pos_index);
+          const double inv_dz = cartesian_filter_->inv_dz(pos_index);
           const double zmin_ = cartesian_filter_->z_min(pos_index);
-          scaled_loc_0 = 2. * (r_start.z() - zmin_) * inv_bin_width - 1.;
-          scaled_loc_d = 2. * (r_end.z() - zmin_) * inv_bin_width - 1.;
+          scaled_loc_0 = 2. * (r_start.z() - zmin_) * inv_dz - 1.;
+          scaled_loc_d = 2. * (r_end.z() - zmin_) * inv_dz - 1.;
         }
       }
 

@@ -1,6 +1,7 @@
 #include <tallies/tallies.hpp>
 #include <tallies/zernike_fet.hpp>
 #include <utils/error.hpp>
+#include <utils/gauss_legendre_quadrature.hpp>
 #include <utils/output.hpp>
 
 #include <boost/container/static_vector.hpp>
@@ -9,14 +10,17 @@ using StaticVector6 = boost::container::static_vector<std::size_t, 6>;
 ZernikeFET::ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
                        std::shared_ptr<EnergyFilter> energy_filter,
                        std::size_t zernike_order, std::size_t legendre_order,
-                       Quantity quantity, Estimator estimator, std::string name)
+                       Quantity quantity, Estimator estimator, std::string name,
+                       std::size_t quad_point)
     : ITally(quantity, estimator, name),
       cylinder_filter_(cylinder_filter),
       energy_filter_(energy_filter),
       zr_polynomial_(zernike_order),
       zr_order_(zernike_order),
       legen_order_(legendre_order),
-      axial_direction_() {
+      quadrature_point_(quad_point),
+      axial_direction_(),
+      abscissas_and_weights_() {
   StaticVector6 tally_shape;
   // add the dimension for energy_in_ only if exist
   if (energy_filter_) {
@@ -38,6 +42,28 @@ ZernikeFET::ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
     mssg << "Tally " << tally_name_
          << " has a source-like qantity but does not use a source estimator.";
     fatal_error(mssg.str());
+  }
+
+  // if the tally's estimator is track-length, then check for the quadrature
+  // points.
+  if (estimator_ == Estimator::TrackLength) {
+    if (quadrature_point_ == 0) {
+      std::stringstream mssg;
+      mssg << "Tally " << tally_name_
+           << " has a track-length estimator without a quadrature point > 0.";
+      fatal_error(mssg.str());
+    }
+    if (!((quadrature_point_ == 2) || (quadrature_point_ == 4) ||
+          (quadrature_point_ == 6) || (quadrature_point_ == 8) ||
+          (quadrature_point_ == 10) || (quadrature_point_ == 12) ||
+          (quadrature_point_ == 16) || (quadrature_point_ == 16))) {
+      std::stringstream mssg;
+      mssg << "Tally " << tally_name_
+           << " has a track-length estimator, and only take the 2, 4, 6, 8, "
+              "10, 12, 16 quadrature points.";
+      fatal_error(mssg.str());
+    }
+    abscissas_and_weights_ = gauss_legendre_quarature(quadrature_point_);
   }
 
   // throw the error if the infinte-cylinder and legendre-fet is given
@@ -74,14 +100,17 @@ ZernikeFET::ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
 ZernikeFET::ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
                        std::shared_ptr<EnergyFilter> energy_filter,
                        std::size_t zernike_order, Quantity quantity,
-                       Estimator estimator, std::string name)
+                       Estimator estimator, std::string name,
+                       std::size_t quad_point)
     : ITally(quantity, estimator, name),
       cylinder_filter_(cylinder_filter),
       energy_filter_(energy_filter),
       zr_polynomial_(zernike_order),
       zr_order_(zernike_order),
       legen_order_(),
-      axial_direction_() {
+      quadrature_point_(quad_point),
+      axial_direction_(),
+      abscissas_and_weights_() {
   StaticVector6 tally_shape;
   // add the dimension for energy_in_ only if exist
   if (energy_filter_) {
@@ -103,6 +132,28 @@ ZernikeFET::ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
     mssg << "Tally " << tally_name_
          << " has a source-like qantity but does not use a source estimator.";
     fatal_error(mssg.str());
+  }
+
+  // if the tally's estimator is track-length, then check for the quadrature
+  // points.
+  if (estimator_ == Estimator::TrackLength) {
+    if (quadrature_point_ == 0) {
+      std::stringstream mssg;
+      mssg << "Tally " << tally_name_
+           << " has a track-length estimator without a quadrature point > 0.";
+      fatal_error(mssg.str());
+    }
+    if (!((quadrature_point_ == 2) || (quadrature_point_ == 4) ||
+          (quadrature_point_ == 6) || (quadrature_point_ == 8) ||
+          (quadrature_point_ == 10) || (quadrature_point_ == 12) ||
+          (quadrature_point_ == 16) || (quadrature_point_ == 16))) {
+      std::stringstream mssg;
+      mssg << "Tally " << tally_name_
+           << " has a track-length estimator, and only take the 2, 4, 6, 8, "
+              "10, 12, 16 quadrature points.";
+      fatal_error(mssg.str());
+    }
+    abscissas_and_weights_ = gauss_legendre_quarature(quadrature_point_);
   }
 
   StaticVector3 cylinder_shape = cylinder_filter_->get_shape();
@@ -212,6 +263,160 @@ void ZernikeFET::score_collision(const Particle& p, const Tracker& tktr,
 #pragma omp atomic
 #endif
       tally_gen_score_.element(indices.begin(), indices.end()) += beta_n;
+    }
+  }
+}
+
+void ZernikeFET::score_flight(const Particle& p, const Tracker& trkr,
+                              double d_flight, MaterialHelper& mat) {
+  std::size_t index_E;
+  // get the energy-index, if energy-filter exists
+  if (energy_filter_) {
+    std::optional<std::size_t> E_indx = energy_filter_->get_index(p.E());
+    if (E_indx.has_value() == false) {
+      // Not inside any energy bin. Don't score.
+      return;
+    }
+
+    index_E = E_indx.value();
+  }
+
+  // get the cylinder indices
+  std::vector<TracklengthPositionDistance> cylinder_indices =
+      cylinder_filter_->get_indices_tracklength_with_position(trkr, d_flight);
+  if (cylinder_indices.empty()) {
+    // No bin is found, don't score.
+    return;
+  }
+
+  // get the flight score
+  const double flight_score =
+      particle_base_score(p.E(), p.wgt(), p.wgt2(), &mat);
+
+  // first score the zernike-fet in radial
+  for (std::size_t iter = 0; iter < cylinder_indices.size(); iter++) {
+    StaticVector6 all_indices;
+    if (energy_filter_) {
+      all_indices.push_back(index_E);
+    }
+    StaticVector3 pos_index = cylinder_indices[iter].index;
+    all_indices.insert(all_indices.end(), pos_index.begin(), pos_index.end());
+
+    const double dist = cylinder_indices[iter].distance;
+
+    // get the starting and end points with that bin
+    const Position r_start = cylinder_indices[iter].r0;
+
+    // add one dimension for the different orders of polynomials.
+    // First loop over 0 to zernike-order for the zernike polynomial, then
+    // loop over 0 + (zernike-order + 1) to legendre-order + (zernike-order + 1)
+    const std::size_t FET_index = all_indices.size();
+    all_indices.push_back(0);
+
+    // variable for scoring
+    double beta_n = 0.;
+    // loop over quadrature points
+    for (std::size_t n_quad = 0; n_quad < quadrature_point_; n_quad++) {
+      const double abscia_quad = abscissas_and_weights_(0, n_quad);
+      const double weight_quad = abscissas_and_weights_(1, n_quad);
+      const double dist_n_quad = (abscia_quad + 1.) * 0.5 * dist;
+
+      Position r_at_quad = r_start + dist_n_quad * p.u();
+      std::pair<double, double> scaled_r_and_theta =
+          cylinder_filter_->get_scaled_radius_and_angle(pos_index, r_at_quad);
+      const double scaled_r = scaled_r_and_theta.first;
+      const double theta = scaled_r_and_theta.second;
+      const std::vector<double> zr_value =
+          zr_polynomial_.evaluate_zernikes(scaled_r, theta);
+
+      // loop over all Zerinker Polynomials
+      for (std::size_t i = 0; i <= zr_order_; i++) {
+        beta_n = flight_score * (weight_quad * zr_value[i] * 0.5 * dist);
+        all_indices[FET_index] = i;
+#ifdef ABEILLE_USE_OMP
+#pragma omp atomic
+#endif
+        tally_gen_score_.element(all_indices.begin(), all_indices.end()) +=
+            beta_n;
+      }
+    }
+
+    if (check_for_legendre == true) {
+      // const Position r_end = cylinder_indices[iter].r0 + dist * p.u();
+      const double dz = cylinder_filter_->inv_dz();
+      const double zmin_ = cylinder_filter_->z_min(pos_index);
+
+      double r_start_z, r_end_z;
+      if (axial_direction_ == CylinderFilter::Orientation::Z) {
+        r_start_z = r_start.z();
+        r_end_z = r_start_z + dist * p.u().z();
+      } else if (axial_direction_ == CylinderFilter::Orientation::Y) {
+        r_start_z = r_start.y();
+        r_end_z = r_start_z + dist * p.u().y();
+      } else if (axial_direction_ == CylinderFilter::Orientation::X) {
+        r_start_z = r_start.x();
+        r_end_z = r_start_z + dist * p.u().x();
+      }
+      const double scaled_loc_0 = 2. * (r_start_z - zmin_) * dz - 1.;
+      const double scaled_loc_d = 2. * (r_end_z - zmin_) * dz - 1.;
+
+      // loop over different FET order
+      // to evaluate the Legendre Polynomial one order more than fet-order
+      double p0_up_0 = 1., p0_up_d = 1.;
+      double p1_up_0 = scaled_loc_0, p1_up_d = scaled_loc_d;
+      double p2_up_0 = 1., p2_up_d = 1.;
+
+      double dist_ratio = dist, inetegral_value = 1.;
+
+      // if scaled_loc_0 == scaled_loc_d, then integral will no longer be valid.
+      if (scaled_loc_0 == scaled_loc_d) {
+        p1_up_0 = 1.;
+        p1_up_d = 1.;
+      } else {
+        dist_ratio *= 1. / (scaled_loc_d - scaled_loc_0);
+        inetegral_value = (scaled_loc_d - scaled_loc_0);
+      }
+
+      // loop over different legendre-order
+      for (std::size_t i = 0; i <= legen_order_; i++) {
+        if (i > 0) {
+          if (scaled_loc_0 != scaled_loc_d) {
+            // recursive relation to evaluate the legendre
+            p2_up_0 = (scaled_loc_0 * static_cast<double>(2 * i + 1) * p1_up_0 -
+                       static_cast<double>(i) * p0_up_0) /
+                      static_cast<double>(i + 1);
+            p2_up_d = (scaled_loc_d * static_cast<double>(2 * i + 1) * p1_up_d -
+                       static_cast<double>(i) * p0_up_d) /
+                      static_cast<double>(i + 1);
+
+            inetegral_value = (p2_up_d - p2_up_0 - p0_up_d + p0_up_0) /
+                              static_cast<double>(2 * i + 1);
+
+            p0_up_0 = p1_up_0;
+            p1_up_0 = p2_up_0;
+
+            p0_up_d = p1_up_d;
+            p1_up_d = p2_up_d;
+
+          } else {
+            // if we are here, that means the this track has the sinuglar
+            // condition.
+            p2_up_0 = (scaled_loc_0 * static_cast<double>(2 * i - 1) * p1_up_0 -
+                       static_cast<double>(i - 1) * p0_up_0) /
+                      static_cast<double>(i);
+            p0_up_0 = p1_up_0;
+            p1_up_0 = p2_up_0;
+          }
+        }
+        // scoring value correponding to the order
+        beta_n = flight_score * dist_ratio * inetegral_value;
+        all_indices[FET_index] = i + zr_order_ + 1;
+#ifdef ABEILLE_USE_OMP
+#pragma omp atomic
+#endif
+        tally_gen_score_.element(all_indices.begin(), all_indices.end()) +=
+            beta_n;
+      }
     }
   }
 }
@@ -581,9 +786,6 @@ std::shared_ptr<ZernikeFET> make_zernike_fet(const YAML::Node& node) {
     estimator = Estimator::Collision;
   } else if (estimator_name == "track-length") {
     estimator = Estimator::TrackLength;
-    fatal_error(
-        "On tally " + name +
-        ", track-length estimator is not yet supported on zernike-fet.");
   } else if (estimator_name == "source") {
     estimator = Estimator::Source;
   } else {
@@ -654,6 +856,20 @@ std::shared_ptr<ZernikeFET> make_zernike_fet(const YAML::Node& node) {
     legendre_fet_order = node["legendre-order"].as<std::size_t>();
   }
 
+  // if the track-length estimator exists, get the number of quadrature point
+  std::size_t N_quad_point = 0;
+  if (estimator == Estimator::TrackLength) {
+    if (!node["quadrature-point"] ||
+        (node["quadrature-point"].IsScalar() == false)) {
+      std::stringstream mssg;
+      mssg
+          << "Tally " << name
+          << " has invalid quadrature-point entry with track-lenght estimator.";
+      fatal_error(mssg.str());
+    }
+    N_quad_point = node["quadrature-point"].as<std::size_t>();
+  }
+
   // If we have both legendre and zernike then use the first constructor,
   if (legendre_exist) {
     // check if the legendre exist, then make sure, it doesn't have a
@@ -668,11 +884,11 @@ std::shared_ptr<ZernikeFET> make_zernike_fet(const YAML::Node& node) {
     }
     return std::make_shared<ZernikeFET>(cylinder_filter, energy_filter,
                                         zernike_fet_order, legendre_fet_order,
-                                        quant, estimator, name);
+                                        quant, estimator, name, N_quad_point);
   } else {
     // if we have the zernike only, then use the second constructor
     return std::make_shared<ZernikeFET>(cylinder_filter, energy_filter,
                                         zernike_fet_order, quant, estimator,
-                                        name);
+                                        name, N_quad_point);
   }
 }

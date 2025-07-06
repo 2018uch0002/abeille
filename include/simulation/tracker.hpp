@@ -56,13 +56,6 @@ class Tracker {
     }
   };
 
-  Tracker(Position i_r, Direction i_u, bool care_full)
-      : r_(i_r), u_(i_u), tree(), surface_token_(0) {
-        if (care_full == false){
-          surface_token_ = 0;
-        }
-  };
-
   ~Tracker() = default;
 
   Position r() const { return r_; }

@@ -8,6 +8,7 @@
 #include <utils/error.hpp>
 
 #include <yaml-cpp/yaml.h>
+#include <xtensor/xtensor.hpp>
 
 class ZernikeFET : public ITally {
  public:
@@ -16,23 +17,21 @@ class ZernikeFET : public ITally {
   ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
              std::shared_ptr<EnergyFilter> energy_filter,
              std::size_t zernike_order, std::size_t legendre_order,
-             Quantity quantity, Estimator estimator, std::string name);
+             Quantity quantity, Estimator estimator, std::string name, std::size_t quad_point = 0);
 
   // following constructor will be called when only zernike fet needs to be
   // evaluated
   ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
              std::shared_ptr<EnergyFilter> energy_filter,
              std::size_t zernike_order, Quantity quantity, Estimator estimator,
-             std::string name);
+             std::string name, std::size_t quad_point = 0);
 
   void score_collision(const Particle& p, const Tracker& trkr,
                        MaterialHelper& mat) override final;
 
-  void score_flight(const Particle& /*p*/, const Tracker& /*trkr*/,
-                    double /*d_flight*/,
-                    MaterialHelper& /*mat*/) override final {
-    fatal_error("the track-length for the zernike-fet is not supoorted yet.");
-  }
+  void score_flight(const Particle& p, const Tracker& trkr,
+                    double d_flight,
+                    MaterialHelper& mat) override final;
 
   void score_source(const BankedParticle& p) override final;
 
@@ -52,9 +51,13 @@ class ZernikeFET : public ITally {
   // Zernike and Legendre Polynomials can hold the polynomials upto that order
   // can return the std::vector<double> calculated for each order
   ZernikePolynomials zr_polynomial_;
-  std::size_t zr_order_, legen_order_;
+  std::size_t zr_order_, legen_order_, quadrature_point_ = 0;
 
   CylinderFilter::Orientation axial_direction_;
+
+  // to store the abscissas and weights of the quadrature ponints
+  // first dimension corresponds to abscissas and second corresponds to weights
+  xt::xtensor<double, 2> abscissas_and_weights_; 
 
   bool check_for_legendre = true;
 };

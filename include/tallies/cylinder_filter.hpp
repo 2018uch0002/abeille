@@ -67,15 +67,9 @@ class CylinderFilter : public PositionFilter {
     if (length_axis_ == Orientation::Z) {
       return;
     } else if (length_axis_ == Orientation::Y) {
-      // std::size_t nz = indexes[2];
-      // indexes[2] = indexes[1];
-      // indexes[1] = nz;
       std::swap(indexes[1], indexes[2]);
       return;
     } else if (length_axis_ == Orientation::X) {
-      // std::size_t nz = indexes[2];
-      // indexes[2] = indexes[0];
-      // indexes[0] = nz;
       std::swap(indexes[0], indexes[2]);
       return;
     }
