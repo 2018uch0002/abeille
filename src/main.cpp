@@ -82,7 +82,6 @@ bool exists(std::string fname) {
 
 int main(int argc, char** argv) {
   settings::alpha_omega_timer.start();
-  test();
 
   mpi::initialize_mpi(&argc, &argv);
 
