@@ -245,6 +245,11 @@ ScatterInfo CENuclide::sample_scatter(double Ein, const Direction& u,
   info.mt = MT;
   info.yield = yield;
   info.energy = Eout;
+  if (std::isnan(Eout)){
+    std::stringstream mssg;
+    mssg << "Found the Eout = " << Eout << "when Ein = " << Ein << " in sample_scatter.";
+    fatal_error(mssg.str());
+  }
   info.direction = uout;
   return info;
 }
@@ -284,6 +289,11 @@ ScatterInfo CENuclide::sample_scatter_mt(uint32_t mt, double Ein,
   info.mt = mt;
   info.yield = yield;
   info.energy = E_out;
+  if (std::isnan(E_out)){
+    std::stringstream mssg;
+    mssg << "Found the Eout = " << E_out << "when Ein = " << Ein << " in sample_scatter_mt.";
+    fatal_error(mssg.str());
+  }
   info.direction = u_out;
   return info;
 }
@@ -291,6 +301,12 @@ ScatterInfo CENuclide::sample_scatter_mt(uint32_t mt, double Ein,
 FissionInfo CENuclide::sample_fission(double Ein, const Direction& u,
                                       std::size_t i, double Pdelayed,
                                       RNG& rng) const {
+  if (std::isnan(Ein)){
+    std::stringstream mssg;
+    mssg << "Found the Ein = " << Ein << " while entering the sample_fission.";
+    fatal_error(mssg.str());
+  }
+
   if (rng() < Pdelayed) {
     // Make delayed neutron
     // Must first sample the delayed family
@@ -325,6 +341,11 @@ FissionInfo CENuclide::sample_prompt_fission(double Ein, const Direction& u,
 
   FissionInfo info;
   info.energy = ae_out.energy;
+  if (std::isnan(info.energy)){
+    std::stringstream mssg;
+    mssg << "Found the Eout = " << info.energy << "when Ein = " << Ein << " in sample_prompt_fission.";
+    fatal_error(mssg.str());
+  }
   double phi = 2. * PI * rng();
   info.direction = rotate_direction(u, ae_out.cosine_angle, phi);
   info.delayed = false;
@@ -350,6 +371,11 @@ FissionInfo CENuclide::sample_delayed_fission(double Ein, const Direction& u,
 
   FissionInfo info;
   info.energy = Eout;
+  if (std::isnan(Eout)){
+    std::stringstream mssg;
+    mssg << "Found the Eout = " << Eout << "when Ein = " << Ein << " in sample_delayed_fission.";
+    fatal_error(mssg.str());
+  }
   info.direction = rotate_direction(u, mu, phi);
   info.delayed = true;
   info.delayed_family = static_cast<uint32_t>(g);
@@ -372,6 +398,11 @@ void CENuclide::elastic_scatter(double Ein, const Direction& uin, double& Eout,
   Eout = ae.energy;
   double mu = ae.cosine_angle;
   uout = rotate_direction(uin, mu, 2. * PI * rng());
+  if (std::isnan(Eout)){
+    std::stringstream mssg;
+    mssg << "Found the Eout = " << Eout << "when Ein = " << Ein << " in elastic_scatter.";
+    fatal_error(mssg.str());
+  }
 }
 
 void CENuclide::thermal_scatter(double Ein, const Direction& uin, double& Eout,
@@ -408,4 +439,9 @@ void CENuclide::thermal_scatter(double Ein, const Direction& uin, double& Eout,
 
   uout = rotate_direction(uin, ae_out.cosine_angle, 2. * PI * rng());
   Eout = ae_out.energy;
+  if (std::isnan(Eout)){
+    std::stringstream mssg;
+    mssg << "Found the Eout = " << Eout << "when Ein = " << Ein << " in thermal_scatter.";
+    fatal_error(mssg.str());
+  }
 }
