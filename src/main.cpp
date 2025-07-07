@@ -41,8 +41,6 @@
 #include <stdexcept>
 #include <string>
 
-#include <test.hpp>
-
 #ifdef ABEILLE_USE_OMP
 #include <omp.h>
 #endif
@@ -168,7 +166,7 @@ int main(int argc, char** argv) {
     else
       input_filename = "input.txt";
 
-      // If using OpenMP, get number of threads requested
+    // If using OpenMP, get number of threads requested
 #ifdef ABEILLE_USE_OMP
     int num_omp_threads;
     if (args["--threads"])

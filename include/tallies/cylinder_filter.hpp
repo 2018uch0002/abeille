@@ -41,9 +41,10 @@ class CylinderFilter : public PositionFilter {
 
   std::vector<TracklengthDistance> get_indices_tracklength(
       const Tracker& trkr, double d_flight) const override final;
-  
-  std::vector<TracklengthPositionDistance> get_indices_tracklength_with_position(
-      const Tracker& trkr, double d_flight) const override final;
+
+  std::vector<TracklengthPositionDistance>
+  get_indices_tracklength_with_position(const Tracker& trkr,
+                                        double d_flight) const override final;
 
   Orientation get_axial_direction() { return length_axis_; }
 
@@ -137,17 +138,14 @@ class CylinderFilter : public PositionFilter {
                         double& d_flight) const;
   void update_indices(int key, int& i, int& j, int& k,
                       std::array<int, 3>& on) const;
-
- public:
   std::pair<double, int> distance_to_next_index(
-      const Position& r, const Direction& u, const double& d_flight, const double& ux_inv,
-      const double& uy_inv, const double& uz_inv,
+      const Position& r, const Direction& u, const double& d_flight,
+      const double& ux_inv, const double& uy_inv, const double& uz_inv,
       const double& sine_pol_sqr_inv, const std::array<int, 3>& on, int i,
       int j, int k, double& cross_distance) const;
-
   std::pair<double, int> distance_start_position_to_next_index(
-      const Position& r, const Direction& u, const double& d_flight, const double& ux_inv,
-      const double& uy_inv, const double& uz_inv,
+      const Position& r, const Direction& u, const double& d_flight,
+      const double& ux_inv, const double& uy_inv, const double& uz_inv,
       const double& sine_pol_sqr_inv, const std::array<int, 3>& on, int i,
       int j, int k, double& cross_distance, Position& start_r) const;
 };

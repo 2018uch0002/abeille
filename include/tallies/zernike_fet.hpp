@@ -17,7 +17,8 @@ class ZernikeFET : public ITally {
   ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
              std::shared_ptr<EnergyFilter> energy_filter,
              std::size_t zernike_order, std::size_t legendre_order,
-             Quantity quantity, Estimator estimator, std::string name, std::size_t quad_point = 0);
+             Quantity quantity, Estimator estimator, std::string name,
+             std::size_t quad_point = 0);
 
   // following constructor will be called when only zernike fet needs to be
   // evaluated
@@ -29,8 +30,7 @@ class ZernikeFET : public ITally {
   void score_collision(const Particle& p, const Tracker& trkr,
                        MaterialHelper& mat) override final;
 
-  void score_flight(const Particle& p, const Tracker& trkr,
-                    double d_flight,
+  void score_flight(const Particle& p, const Tracker& trkr, double d_flight,
                     MaterialHelper& mat) override final;
 
   void score_source(const BankedParticle& p) override final;
@@ -57,7 +57,7 @@ class ZernikeFET : public ITally {
 
   // to store the abscissas and weights of the quadrature ponints
   // first dimension corresponds to abscissas and second corresponds to weights
-  xt::xtensor<double, 2> abscissas_and_weights_; 
+  xt::xtensor<double, 2> abscissas_and_weights_;
 
   bool check_for_legendre = true;
 };
