@@ -713,6 +713,12 @@ bool FuelPinApproxCancelator::add_particle(BankedParticle& p) {
   const double origin_y0 =
       assembly_y0 + (static_cast<double>(j) + 0.5) * pitch_y_;
 
+  // now the origin of respective fuel pin is calculated.
+  // so, add the number fuel pins prior to the current assembly
+  i += i_asmbly * Nx_per_asmbly_;
+  j += j_asmbly * Ny_per_asmbly_;
+  k += k_asmbly * Nz_per_asmbly_;
+
   const double xp = p.r.x() - origin_x0;
   const double yp = p.r.y() - origin_y0;
   const double radius_square = xp * xp + yp * yp;
