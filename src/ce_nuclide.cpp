@@ -334,6 +334,15 @@ FissionInfo CENuclide::sample_prompt_fission(double Ein, const Direction& u,
   while (!sampled) {
     ae_out =
         cedata_->fission().prompt_spectrum().sample_angle_energy(Ein, rngfunc);
+    
+    try{
+      ae_out = cedata_->fission().prompt_spectrum().sample_angle_energy(Ein, rngfunc);
+    } catch(pndl::PNDLException& error){
+      std::stringstream mssg;
+      mssg << "Could not sample prompt fission spectrum for ZAID " << this->zaid() << " at incident energy " << Ein << ".";
+      error.add_to_exception(mssg.str()); 
+      throw error;
+    }
 
     // Check outgoing energy
     if (ae_out.energy < settings::max_energy) sampled = true;
