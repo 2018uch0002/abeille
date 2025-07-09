@@ -332,8 +332,8 @@ FissionInfo CENuclide::sample_prompt_fission(double Ein, const Direction& u,
 
   bool sampled = false;
   while (!sampled) {
-    ae_out =
-        cedata_->fission().prompt_spectrum().sample_angle_energy(Ein, rngfunc);
+    // ae_out =
+    //     cedata_->fission().prompt_spectrum().sample_angle_energy(Ein, rngfunc);
     
     try{
       ae_out = cedata_->fission().prompt_spectrum().sample_angle_energy(Ein, rngfunc);
