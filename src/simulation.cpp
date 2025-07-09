@@ -331,6 +331,16 @@ void Simulation::perform_regional_cancellation(
 
   if (tmp.size() > 0) next_gen.insert(next_gen.begin(), tmp.begin(), tmp.end());
 
+  // check the wether weight and the energy of the particle is nan.
+  for (auto& p : next_gen){
+    if (std::isnan(p.wgt) || std::isnan(p.E)){
+      std::stringstream mssg;
+      mssg << "Found a particle with NaN w= " <<p.wgt << "\t E= " << p.E << "  ";
+      mssg << "at mpi-rank: " << mpi::rank ;
+      fatal_error(mssg.str());
+    }
+  }
+
   // All done ! Clear cancelator for next run
   cancelator->clear();
 }

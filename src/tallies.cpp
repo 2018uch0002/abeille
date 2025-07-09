@@ -335,9 +335,21 @@ void Tallies::write_tallies(bool track_length_compatible) {
 
     for (auto& tallly : new_itally_source_) tallly->write_tally();
 
-    for (auto& tallly : new_itally_source_precancel_) tallly->write_tally();
+    for (auto& tallly : new_itally_source_precancel_){
+      tallly->write_tally();
+      // after writing the tally make sure to add the type of source
+      const std::string pre_cancel_tally_name = tallly->name();
+      auto tally_output = h5.getGroup("results/" + pre_cancel_tally_name);
+      tally_output.createAttribute("source-type", "pre-cancel-source");
+    }
 
-    for (auto& tallly : new_itally_source_postcancel_) tallly->write_tally();
+    for (auto& tallly : new_itally_source_postcancel_){
+      tallly->write_tally();
+      // after writing the tally make sure to add the type of source
+      const std::string post_cancel_tally_name = tallly->name();
+      auto tally_output = h5.getGroup("results/" + post_cancel_tally_name);
+      tally_output.createAttribute("source-type", "post-cancel-source");
+    }
   }
 }
 
