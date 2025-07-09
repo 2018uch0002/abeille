@@ -228,6 +228,11 @@ ScatterInfo CENuclide::sample_scatter(double Ein, const Direction& u,
   // Sample reaction data
   if (MT == 2) {
     elastic_scatter(Ein, u, Eout, uout, rng);
+    if (std::isnan(Eout)){
+      std::stringstream mssg;
+      mssg << "Found the Eout = " << Eout << " when Ein = " << Ein << " in sample_scatter -> elastic_scatter.";
+      fatal_error(mssg.str());
+    }
   } else {
     // Get yield for the reaction
     yield = cedata_->reaction(MT).yield()(Ein);
@@ -237,6 +242,11 @@ ScatterInfo CENuclide::sample_scatter(double Ein, const Direction& u,
         cedata_->reaction(MT).sample_neutron_angle_energy(Ein, rngfunc);
 
     Eout = ae_out.energy;
+    if (std::isnan(Eout)){
+      std::stringstream mssg;
+      mssg << "Found the Eout = " << Eout << " when Ein = " << Ein << " in sample_scatter -> elastic_scatter.";
+      fatal_error(mssg.str());
+    }
     uout = rotate_direction(u, ae_out.cosine_angle, 2. * PI * rng());
   }
 
