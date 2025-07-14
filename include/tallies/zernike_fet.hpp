@@ -6,6 +6,7 @@
 #include <tallies/itally.hpp>
 #include <tallies/zernike_polynomial.hpp>
 #include <utils/error.hpp>
+#include <utils/gauss_quadrature.hpp>
 
 #include <yaml-cpp/yaml.h>
 #include <xtensor/xtensor.hpp>
@@ -13,19 +14,21 @@
 class ZernikeFET : public ITally {
  public:
   // following constructor will be called when zernike and legendre both needs
-  // to evaluated
-  ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
-             std::shared_ptr<EnergyFilter> energy_filter,
-             std::size_t zernike_order, std::size_t legendre_order,
-             Quantity quantity, Estimator estimator, std::string name,
-             std::size_t quad_point = 0);
+  // to be evaluated
+  ZernikeFET(
+      std::shared_ptr<CylinderFilter> cylinder_filter,
+      std::shared_ptr<EnergyFilter> energy_filter, std::size_t zernike_order,
+      std::size_t legendre_order, Quantity quantity, Estimator estimator,
+      std::string name,
+      GaussQuadrature gauss_quad = GaussQuadrature(GaussLegendreQuad<1>()));
 
   // following constructor will be called when only zernike fet needs to be
   // evaluated
-  ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
-             std::shared_ptr<EnergyFilter> energy_filter,
-             std::size_t zernike_order, Quantity quantity, Estimator estimator,
-             std::string name, std::size_t quad_point = 0);
+  ZernikeFET(
+      std::shared_ptr<CylinderFilter> cylinder_filter,
+      std::shared_ptr<EnergyFilter> energy_filter, std::size_t zernike_order,
+      Quantity quantity, Estimator estimator, std::string name,
+      GaussQuadrature gauss_quad = GaussQuadrature(GaussLegendreQuad<1>()));
 
   void score_collision(const Particle& p, const Tracker& trkr,
                        MaterialHelper& mat) override final;
@@ -51,13 +54,13 @@ class ZernikeFET : public ITally {
   // Zernike and Legendre Polynomials can hold the polynomials upto that order
   // can return the std::vector<double> calculated for each order
   ZernikePolynomials zr_polynomial_;
-  std::size_t zr_order_, legen_order_, quadrature_point_ = 0;
+  std::size_t zr_order_, legen_order_;
 
   CylinderFilter::Orientation axial_direction_;
 
-  // to store the abscissas and weights of the quadrature ponints
-  // first dimension corresponds to abscissas and second corresponds to weights
-  xt::xtensor<double, 2> abscissas_and_weights_;
+  // to get the gauss quadrature set
+  GaussQuadrature gauss_quad_;
+  std::size_t quadrature_point_ = 0;
 
   bool check_for_legendre = true;
 };

@@ -11,16 +11,16 @@ ZernikeFET::ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
                        std::shared_ptr<EnergyFilter> energy_filter,
                        std::size_t zernike_order, std::size_t legendre_order,
                        Quantity quantity, Estimator estimator, std::string name,
-                       std::size_t quad_point)
+                       GaussQuadrature gauss_quad)
     : ITally(quantity, estimator, name),
       cylinder_filter_(cylinder_filter),
       energy_filter_(energy_filter),
       zr_polynomial_(zernike_order),
       zr_order_(zernike_order),
       legen_order_(legendre_order),
-      quadrature_point_(quad_point),
       axial_direction_(),
-      abscissas_and_weights_() {
+      gauss_quad_(gauss_quad),
+      quadrature_point_(gauss_quad_.size()) {
   StaticVector6 tally_shape;
   // add the dimension for energy_in_ only if exist
   if (energy_filter_) {
@@ -42,28 +42,6 @@ ZernikeFET::ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
     mssg << "Tally " << tally_name_
          << " has a source-like qantity but does not use a source estimator.";
     fatal_error(mssg.str());
-  }
-
-  // if the tally's estimator is track-length, then check for the quadrature
-  // points.
-  if (estimator_ == Estimator::TrackLength) {
-    if (quadrature_point_ == 0) {
-      std::stringstream mssg;
-      mssg << "Tally " << tally_name_
-           << " has a track-length estimator without a quadrature point > 0.";
-      fatal_error(mssg.str());
-    }
-    if (!((quadrature_point_ == 2) || (quadrature_point_ == 4) ||
-          (quadrature_point_ == 6) || (quadrature_point_ == 8) ||
-          (quadrature_point_ == 10) || (quadrature_point_ == 12) ||
-          (quadrature_point_ == 16) || (quadrature_point_ == 16))) {
-      std::stringstream mssg;
-      mssg << "Tally " << tally_name_
-           << " has a track-length estimator, and only take the 2, 4, 6, 8, "
-              "10, 12, 16 quadrature points.";
-      fatal_error(mssg.str());
-    }
-    abscissas_and_weights_ = gauss_legendre_quarature(quadrature_point_);
   }
 
   // throw the error if the infinte-cylinder and legendre-fet is given
@@ -101,16 +79,16 @@ ZernikeFET::ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
                        std::shared_ptr<EnergyFilter> energy_filter,
                        std::size_t zernike_order, Quantity quantity,
                        Estimator estimator, std::string name,
-                       std::size_t quad_point)
+                       GaussQuadrature gauss_quad)
     : ITally(quantity, estimator, name),
       cylinder_filter_(cylinder_filter),
       energy_filter_(energy_filter),
       zr_polynomial_(zernike_order),
       zr_order_(zernike_order),
       legen_order_(),
-      quadrature_point_(quad_point),
       axial_direction_(),
-      abscissas_and_weights_() {
+      gauss_quad_(gauss_quad),
+      quadrature_point_(gauss_quad_.size()) {
   StaticVector6 tally_shape;
   // add the dimension for energy_in_ only if exist
   if (energy_filter_) {
@@ -132,28 +110,6 @@ ZernikeFET::ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
     mssg << "Tally " << tally_name_
          << " has a source-like qantity but does not use a source estimator.";
     fatal_error(mssg.str());
-  }
-
-  // if the tally's estimator is track-length, then check for the quadrature
-  // points.
-  if (estimator_ == Estimator::TrackLength) {
-    if (quadrature_point_ == 0) {
-      std::stringstream mssg;
-      mssg << "Tally " << tally_name_
-           << " has a track-length estimator without a quadrature point > 0.";
-      fatal_error(mssg.str());
-    }
-    if (!((quadrature_point_ == 2) || (quadrature_point_ == 4) ||
-          (quadrature_point_ == 6) || (quadrature_point_ == 8) ||
-          (quadrature_point_ == 10) || (quadrature_point_ == 12) ||
-          (quadrature_point_ == 16) || (quadrature_point_ == 16))) {
-      std::stringstream mssg;
-      mssg << "Tally " << tally_name_
-           << " has a track-length estimator, and only take the 2, 4, 6, 8, "
-              "10, 12, 16 quadrature points.";
-      fatal_error(mssg.str());
-    }
-    abscissas_and_weights_ = gauss_legendre_quarature(quadrature_point_);
   }
 
   StaticVector3 cylinder_shape = cylinder_filter_->get_shape();
@@ -317,8 +273,9 @@ void ZernikeFET::score_flight(const Particle& p, const Tracker& trkr,
     double beta_n = 0.;
     // loop over quadrature points
     for (std::size_t n_quad = 0; n_quad < quadrature_point_; n_quad++) {
-      const double abscia_quad = abscissas_and_weights_(0, n_quad);
-      const double weight_quad = abscissas_and_weights_(1, n_quad);
+      const auto& absc_and_weight = gauss_quad_.quadrature_set()[n_quad];
+      const double abscia_quad = absc_and_weight.abscissa;
+      const double weight_quad = absc_and_weight.weight;
       const double dist_n_quad = (abscia_quad + 1.) * 0.5 * dist;
 
       Position r_at_quad = r_start + dist_n_quad * p.u();
@@ -722,6 +679,11 @@ void ZernikeFET::write_tally() {
 
   // Save the estimator
   tally_grp.createAttribute("estimator", estimator_str());
+  // if the estimator is track-length, then add the quadrature info
+  if (estimator_ == Estimator::TrackLength){
+    tally_grp.createAttribute("quadrature-points", quadrature_point_);
+    tally_grp.createAttribute("quadrature-type", gauss_quad_.type_str());
+  }
 
   // Save the energy-in filter
   if (energy_filter_) {
@@ -856,18 +818,79 @@ std::shared_ptr<ZernikeFET> make_zernike_fet(const YAML::Node& node) {
     legendre_fet_order = node["legendre-order"].as<std::size_t>();
   }
 
-  // if the track-length estimator exists, get the number of quadrature point
-  std::size_t N_quad_point = 0;
+  // if the track-length estimator exists, get the quadrature-set
+  GaussQuadrature gauss_quad = GaussQuadrature(GaussLegendreQuad<1>());
   if (estimator == Estimator::TrackLength) {
     if (!node["quadrature-point"] ||
         (node["quadrature-point"].IsScalar() == false)) {
       std::stringstream mssg;
       mssg
           << "Tally " << name
-          << " has invalid quadrature-point entry with track-lenght estimator.";
+          << " has invalid quadrature-point entry with track-length estimator.";
       fatal_error(mssg.str());
     }
-    N_quad_point = node["quadrature-point"].as<std::size_t>();
+    const std::size_t N_quad_point = node["quadrature-point"].as<std::size_t>();
+
+    std::string quad_type_str = "gauss-legendre";
+    if (node["quadrature-type"]) {
+      if (node["quadrature-type"].IsScalar() == false) {
+        std::stringstream mssg;
+        mssg
+            << "Tally " << name
+            << " has invalid quadrature-type entry with track-lengthestimator.";
+        fatal_error(mssg.str());
+      }
+      quad_type_str = node["quadrature-type"].as<std::string>();
+    }
+
+    if (quad_type_str == "gauss-legendre") {
+      if (N_quad_point == 1) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<1>());
+      } else if (N_quad_point == 2) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<2>());
+      } else if (N_quad_point == 3) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<3>());
+      } else if (N_quad_point == 4) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<4>());
+      } else if (N_quad_point == 5) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<5>());
+      } else if (N_quad_point == 6) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<6>());
+      } else if (N_quad_point == 7) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<7>());
+      } else if (N_quad_point == 8) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<8>());
+      } else if (N_quad_point == 9) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<9>());
+      } else if (N_quad_point == 10) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<10>());
+      } else if (N_quad_point == 11) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<11>());
+      } else if (N_quad_point == 12) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<12>());
+      } else if (N_quad_point == 16) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<16>());
+      } else if (N_quad_point == 20) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<20>());
+      } else if (N_quad_point == 32) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<32>());
+      } else if (N_quad_point == 64) {
+        gauss_quad = GaussQuadrature(GaussLegendreQuad<64>());
+      } else {
+        std::stringstream mssg;
+        mssg << "Tally " << name
+             << "has incorrect quadrature-point in gauss-legendre.";
+        fatal_error(mssg.str());
+      }
+
+    } else if (quad_type_str == "mid-point-10") {
+      gauss_quad = GaussQuadrature(MidPointQuad<10>());
+
+    } else {
+      std::stringstream mssg;
+      mssg << "Tally " << name << "has incorrect quadrature-type.";
+      fatal_error(mssg.str());
+    }
   }
 
   // If we have both legendre and zernike then use the first constructor,
@@ -884,11 +907,11 @@ std::shared_ptr<ZernikeFET> make_zernike_fet(const YAML::Node& node) {
     }
     return std::make_shared<ZernikeFET>(cylinder_filter, energy_filter,
                                         zernike_fet_order, legendre_fet_order,
-                                        quant, estimator, name, N_quad_point);
+                                        quant, estimator, name, gauss_quad);
   } else {
     // if we have the zernike only, then use the second constructor
     return std::make_shared<ZernikeFET>(cylinder_filter, energy_filter,
                                         zernike_fet_order, quant, estimator,
-                                        name, N_quad_point);
+                                        name, gauss_quad);
   }
 }
