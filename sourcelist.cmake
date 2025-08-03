@@ -82,4 +82,6 @@ set(ABEILLE_SOURCE_FILES ${ABEILLE_SOURCE_FILES}
   src/zernike_polynomial.cpp
   src/zernike_fet.cpp
   src/gauss_legendre_quadrature.cpp
+  src/polynomial_expression.cpp
+  src/zernike_cartesian_polynomial.cpp
 )
