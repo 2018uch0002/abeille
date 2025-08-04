@@ -26,6 +26,10 @@ class CylinderFilter : public PositionFilter {
   double inv_radius() const { return inv_radius_; }
   double get_scaled_radius(const Position& r) const;
 
+  // a method to get the cartesian corrdinates w.r.t. to center of cylinder
+  Position get_scaled_translated_coordinate(StaticVector3 indices, const Position& r,
+                                     bool is_map = true) const;
+
   double z_min(const StaticVector3& indices) const;
   double z_max(const StaticVector3& indices) const;
   double dz() const { return dz_; }

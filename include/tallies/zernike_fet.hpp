@@ -7,6 +7,7 @@
 #include <tallies/zernike_polynomial.hpp>
 #include <utils/error.hpp>
 #include <utils/gauss_quadrature.hpp>
+#include <utils/zernike_cartesian_polynomial.hpp>
 
 #include <yaml-cpp/yaml.h>
 #include <xtensor/xtensor.hpp>
@@ -54,6 +55,7 @@ class ZernikeFET : public ITally {
   // Zernike and Legendre Polynomials can hold the polynomials upto that order
   // can return the std::vector<double> calculated for each order
   ZernikePolynomials zr_polynomial_;
+  ZernikeCartesianPolynomial zr_cart_polynomial_;
   std::size_t zr_order_, legen_order_;
 
   CylinderFilter::Orientation axial_direction_;

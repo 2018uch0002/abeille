@@ -26,6 +26,10 @@ class ZernikeCartesianPolynomial {
                                              const double x0,
                                              const double y0) const;
 
+  // orthonormalsation constant will be achieved by the inverse of square of L-2
+  // norm.
+  double orthonormalization_constant(const std::size_t& order) const;
+
  private:
   std::vector<PolynomialExpression> zr_poly_expression_;
   std::size_t order_, max_n_;

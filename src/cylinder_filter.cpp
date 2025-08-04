@@ -1117,6 +1117,28 @@ std::pair<double, double> CylinderFilter::get_scaled_radius_and_angle(
   return {scaled_r, theta};
 }
 
+// a method to get the cartesian corrdinates w.r.t. to center of cylinder
+// scaling it w.r.t to radius of the circle
+Position CylinderFilter::get_scaled_translated_coordinate(StaticVector3 indices,
+                                     const Position& r,
+                                     bool is_map) const{
+  // the Position r is not according to the class, so map it.
+  Position mapped_r = map_coordinate(r);
+  // get the new-origin cooredinates based on the indices
+  // the new-origin should be according to the class orientation
+  Position new_origin = get_center(indices, is_map);
+
+  const double translated_x = (mapped_r.x() - new_origin.x()) * inv_radius_;
+  const double translated_y = (mapped_r.y() - new_origin.y()) * inv_radius_;
+  const double translated_z = (mapped_r.z() - new_origin.z()) * inv_radius_;
+  
+  // if is_map is false, the send the Position based on the class-orientation
+  if (is_map == false) {
+    return Position(translated_x, translated_y, translated_z);
+  }
+  return map_coordinate(Position(translated_x, translated_y, translated_z));
+}
+
 void CylinderFilter::write_to_hdf5(H5::Group& grp) const {
   // Save id in attributes
   if (grp.hasAttribute("id")) {

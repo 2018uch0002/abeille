@@ -134,3 +134,16 @@ std::vector<double> ZernikeCartesianPolynomial::line_integrate_zernike(
   }
   return values;
 }
+
+// orthonormalsation constant will be achieved by the inverse of square of L-2
+// norm.
+double ZernikeCartesianPolynomial::orthonormalization_constant(
+    const std::size_t& order) const {
+  std::pair<std::size_t, int> n_and_l = get_n_and_l(order);
+  const double n = static_cast<double>(n_and_l.first);
+  if (n_and_l.second == 0) {
+    return (n + 1.);
+  }
+
+  return 2. * (n + 1.);
+}

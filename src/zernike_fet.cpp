@@ -16,6 +16,7 @@ ZernikeFET::ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
       cylinder_filter_(cylinder_filter),
       energy_filter_(energy_filter),
       zr_polynomial_(zernike_order),
+      zr_cart_polynomial_(zernike_order),
       zr_order_(zernike_order),
       legen_order_(legendre_order),
       axial_direction_(),
@@ -84,6 +85,7 @@ ZernikeFET::ZernikeFET(std::shared_ptr<CylinderFilter> cylinder_filter,
       cylinder_filter_(cylinder_filter),
       energy_filter_(energy_filter),
       zr_polynomial_(zernike_order),
+      zr_cart_polynomial_(zernike_order),
       zr_order_(zernike_order),
       legen_order_(),
       axial_direction_(),
@@ -172,12 +174,22 @@ void ZernikeFET::score_collision(const Particle& p, const Tracker& tktr,
   double beta_n;
 
   // first- score for the zernike
-  std::pair<double, double> scaled_r_and_theta =
-      cylinder_filter_->get_scaled_radius_and_angle(cylinder_index, tktr.r());
-  const double scaled_r = scaled_r_and_theta.first;
-  const double theta = scaled_r_and_theta.second;
-  const std::vector<double> zr_value =
-      zr_polynomial_.evaluate_zernikes(scaled_r, theta);
+  // std::pair<double, double> scaled_r_and_theta =
+  //     cylinder_filter_->get_scaled_radius_and_angle(cylinder_index,
+  //     tktr.r());
+  // const double scaled_r = scaled_r_and_theta.first;
+  // const double theta = scaled_r_and_theta.second;
+  // const std::vector<double> zr_value =
+  //     zr_polynomial_.evaluate_zernikes(scaled_r, theta);
+
+  // get the scaled position w.r.t to center of the cylinder at cylinder_index.
+  // This scaled position must not be mapped when returning from the
+  // cylinder_filter_.
+  const Position scaled_translate_pos =
+      cylinder_filter_->get_scaled_translated_coordinate(cylinder_index,
+                                                         tktr.r(), false);
+  const std::vector<double> zr_value = zr_cart_polynomial_.evaluate_zernikes(
+      scaled_translate_pos.x(), scaled_translate_pos.y());
 
   for (std::size_t i = 0; i <= zr_order_; i++) {
     // score for i-th order's basis function
@@ -271,31 +283,65 @@ void ZernikeFET::score_flight(const Particle& p, const Tracker& trkr,
 
     // variable for scoring
     double beta_n = 0.;
-    // loop over quadrature points
-    for (std::size_t n_quad = 0; n_quad < quadrature_point_; n_quad++) {
-      const auto& absc_and_weight = gauss_quad_.quadrature_set()[n_quad];
-      const double abscia_quad = absc_and_weight.abscissa;
-      const double weight_quad = absc_and_weight.weight;
-      const double dist_n_quad = (abscia_quad + 1.) * 0.5 * dist;
+    //     // loop over quadrature points
+    //     for (std::size_t n_quad = 0; n_quad < quadrature_point_; n_quad++) {
+    //       const auto& absc_and_weight = gauss_quad_.quadrature_set()[n_quad];
+    //       const double abscia_quad = absc_and_weight.abscissa;
+    //       const double weight_quad = absc_and_weight.weight;
+    //       const double dist_n_quad = (abscia_quad + 1.) * 0.5 * dist;
 
-      Position r_at_quad = r_start + dist_n_quad * p.u();
-      std::pair<double, double> scaled_r_and_theta =
-          cylinder_filter_->get_scaled_radius_and_angle(pos_index, r_at_quad);
-      const double scaled_r = scaled_r_and_theta.first;
-      const double theta = scaled_r_and_theta.second;
-      const std::vector<double> zr_value =
-          zr_polynomial_.evaluate_zernikes(scaled_r, theta);
+    //       Position r_at_quad = r_start + dist_n_quad * p.u();
+    //       std::pair<double, double> scaled_r_and_theta =
+    //           cylinder_filter_->get_scaled_radius_and_angle(pos_index,
+    //           r_at_quad);
+    //       const double scaled_r = scaled_r_and_theta.first;
+    //       const double theta = scaled_r_and_theta.second;
+    //       const std::vector<double> zr_value =
+    //           zr_polynomial_.evaluate_zernikes(scaled_r, theta);
 
-      // loop over all Zerinker Polynomials
-      for (std::size_t i = 0; i <= zr_order_; i++) {
-        beta_n = flight_score * (weight_quad * zr_value[i] * 0.5 * dist);
-        all_indices[FET_index] = i;
+    //       // loop over all Zerinker Polynomials
+    //       for (std::size_t i = 0; i <= zr_order_; i++) {
+    //         beta_n = flight_score * (weight_quad * zr_value[i] * 0.5 * dist);
+    //         all_indices[FET_index] = i;
+    // #ifdef ABEILLE_USE_OMP
+    // #pragma omp atomic
+    // #endif
+    //         tally_gen_score_.element(all_indices.begin(), all_indices.end())
+    //         +=
+    //             beta_n;
+    //       }
+    //     }
+
+    // exact integration from zernike-polynomial expression
+    const double inv_radius = cylinder_filter_->inv_radius();
+    double omega_x = trkr.u().x(), omega_y = trkr.u().y();
+    if (cylinder_filter_->get_axial_direction() ==
+        CylinderFilter::Orientation::X) {
+      omega_x = trkr.u().z();
+    } else if (cylinder_filter_->get_axial_direction() ==
+               CylinderFilter::Orientation::Y) {
+      omega_y = trkr.u().z();
+    }
+
+    // scale the direction (it is actually the scalling of distance travel)
+    omega_x *= inv_radius;
+    omega_y *= inv_radius;
+    const Position scaled_translate_pos =
+        cylinder_filter_->get_scaled_translated_coordinate(pos_index, trkr.r(),
+                                                           false);
+    std::vector<double> zr_integrate_values =
+        zr_cart_polynomial_.line_integrate_zernike(0., dist, omega_x, omega_y,
+                                                   scaled_translate_pos.x(),
+                                                   scaled_translate_pos.y());
+    // loop over all Zerinker Polynomials
+    for (std::size_t i = 0; i <= zr_order_; i++) {
+      beta_n = flight_score * zr_integrate_values[i];
+      all_indices[FET_index] = i;
 #ifdef ABEILLE_USE_OMP
 #pragma omp atomic
 #endif
-        tally_gen_score_.element(all_indices.begin(), all_indices.end()) +=
-            beta_n;
-      }
+      tally_gen_score_.element(all_indices.begin(), all_indices.end()) +=
+          beta_n;
     }
 
     if (check_for_legendre == true) {
@@ -415,12 +461,21 @@ void ZernikeFET::score_source(const BankedParticle& p) {
   double beta_n;
 
   // first- score for the zernike
-  std::pair<double, double> scaled_r_and_theta =
-      cylinder_filter_->get_scaled_radius_and_angle(cylinder_index, r);
-  const double scaled_r = scaled_r_and_theta.first;
-  const double theta = scaled_r_and_theta.second;
-  const std::vector<double> zr_value =
-      zr_polynomial_.evaluate_zernikes(scaled_r, theta);
+  // std::pair<double, double> scaled_r_and_theta =
+  //     cylinder_filter_->get_scaled_radius_and_angle(cylinder_index, r);
+  // const double scaled_r = scaled_r_and_theta.first;
+  // const double theta = scaled_r_and_theta.second;
+  // const std::vector<double> zr_value =
+  //     zr_polynomial_.evaluate_zernikes(scaled_r, theta);
+
+  // get the scaled position w.r.t to center of the cylinder at cylinder_index.
+  // This scaled position must not be mapped when returning from the
+  // cylinder_filter_.
+  const Position scaled_translate_pos =
+      cylinder_filter_->get_scaled_translated_coordinate(cylinder_index, r,
+                                                         false);
+  const std::vector<double> zr_value = zr_cart_polynomial_.evaluate_zernikes(
+      scaled_translate_pos.x(), scaled_translate_pos.y());
 
   for (std::size_t i = 0; i <= zr_order_; i++) {
     // score for i-th order's basis function
@@ -680,7 +735,7 @@ void ZernikeFET::write_tally() {
   // Save the estimator
   tally_grp.createAttribute("estimator", estimator_str());
   // if the estimator is track-length, then add the quadrature info
-  if (estimator_ == Estimator::TrackLength){
+  if (estimator_ == Estimator::TrackLength) {
     tally_grp.createAttribute("quadrature-points", quadrature_point_);
     tally_grp.createAttribute("quadrature-type", gauss_quad_.type_str());
   }
